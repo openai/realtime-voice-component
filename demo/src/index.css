@@ -1,0 +1,162 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@font-face {
+  font-family: "OpenAI Sans";
+  src: url("/fonts/OpenAISans-Regular.woff") format("woff");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "OpenAI Sans";
+  src: url("/fonts/OpenAISans-Medium.woff") format("woff");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "OpenAI Sans";
+  src: url("/fonts/OpenAISans-Semibold.woff") format("woff");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "OpenAI Sans";
+  src: url("/fonts/OpenAISans-Bold.woff") format("woff");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light;
+  --background: #f3f4f6;
+  --foreground: #111111;
+  --card: #ffffff;
+  --card-foreground: #111111;
+  --popover: #ffffff;
+  --popover-foreground: #111111;
+  --primary: #111111;
+  --primary-foreground: #ffffff;
+  --secondary: #eef0f3;
+  --secondary-foreground: #171717;
+  --muted: #eff1f4;
+  --muted-foreground: #6e6e6e;
+  --accent: #e8ebef;
+  --accent-foreground: #171717;
+  --panel: #ffffff;
+  --panel-foreground: #111111;
+  --field: #ffffff;
+  --field-foreground: #111111;
+  --field-border: rgba(17, 17, 17, 0.16);
+  --destructive: #c2410c;
+  --border: rgba(17, 17, 17, 0.11);
+  --input: rgba(17, 17, 17, 0.12);
+  --ring: rgba(17, 17, 17, 0.24);
+  --radius: 1rem;
+  --vc-font-family: "OpenAI Sans", "Helvetica Neue", Arial, sans-serif;
+  font-family: "OpenAI Sans", "Helvetica Neue", Arial, sans-serif;
+  font-synthesis-weight: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.dark {
+  color-scheme: dark;
+  --background: #101010;
+  --foreground: #f5f3ef;
+  --card: #171717;
+  --card-foreground: #f5f3ef;
+  --popover: #171717;
+  --popover-foreground: #f5f3ef;
+  --primary: #f5f3ef;
+  --primary-foreground: #111111;
+  --secondary: rgba(255, 255, 255, 0.08);
+  --secondary-foreground: #f5f3ef;
+  --muted: rgba(255, 255, 255, 0.06);
+  --muted-foreground: #b2ada5;
+  --accent: rgba(255, 255, 255, 0.12);
+  --accent-foreground: #f8f6f1;
+  --panel: #1a1a1a;
+  --panel-foreground: #f5f3ef;
+  --field: rgba(255, 255, 255, 0.08);
+  --field-foreground: #f5f3ef;
+  --field-border: rgba(255, 255, 255, 0.14);
+  --destructive: #fb7185;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.12);
+  --ring: rgba(245, 243, 239, 0.22);
+}
+
+@theme inline {
+  --font-sans: "OpenAI Sans", "Helvetica Neue", Arial, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-panel: var(--panel);
+  --color-panel-foreground: var(--panel-foreground);
+  --color-field: var(--field);
+  --color-field-foreground: var(--field-foreground);
+  --color-field-border: var(--field-border);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.85);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.2);
+  --radius-2xl: calc(var(--radius) * 1.4);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply font-sans;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    margin: 0;
+    min-height: 100vh;
+  }
+
+  button,
+  input,
+  textarea {
+    font: inherit;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  code,
+  pre {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  }
+}

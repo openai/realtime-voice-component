@@ -1,0 +1,12 @@
+node_modules
+dist
+.turbo
+.vite
+.DS_Store
+.env
+.env.local
+coverage
+*.log
+demo/public/porcupine/
+.agents/
+skills-lock.json
