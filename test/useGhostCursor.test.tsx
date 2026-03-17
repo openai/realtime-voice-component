@@ -278,6 +278,72 @@ describe("useGhostCursor", () => {
 
     expect(screen.getByTestId("phase")).toHaveTextContent("error");
   });
+
+  it("runs batched cursor steps, scrolls off-screen targets into view, and hides afterward", async () => {
+    render(
+      <>
+        <HookHarness />
+        <button data-testid="target-a" type="button">
+          first
+        </button>
+        <button data-testid="target-b" type="button">
+          second
+        </button>
+      </>
+    );
+
+    const targetA = screen.getByTestId("target-a");
+    const targetB = screen.getByTestId("target-b");
+    setRect(targetA, {
+      left: 12,
+      top: 18,
+      width: 100,
+      height: 40
+    });
+    setRect(targetB, {
+      left: 420,
+      top: 240,
+      width: 120,
+      height: 48
+    });
+
+    const operation = vi.fn((label: string) => `${label}:done`);
+    let results: string[] | undefined;
+
+    await act(async () => {
+      const movement = getCursor().runEach(
+        ["a", "b"],
+        (label) => ({ element: label === "a" ? targetA : targetB }),
+        operation
+      );
+      await vi.advanceTimersByTimeAsync(2400);
+      results = await movement;
+    });
+
+    expect(results).toEqual(["a:done", "b:done"]);
+    expect(operation).toHaveBeenCalledTimes(2);
+    expect((targetA.scrollIntoView as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(1);
+    expect(document.querySelector(".vc-ghost-cursor")).toBeNull();
+  });
+
+  it("hides the cursor immediately when hide is called", async () => {
+    render(<HookHarness />);
+
+    await act(async () => {
+      const movement = getCursor().run({ point: { x: 120, y: 220 } }, () => undefined);
+      await vi.advanceTimersByTimeAsync(1200);
+      await movement;
+    });
+
+    expect(document.querySelector(".vc-ghost-cursor")).not.toBeNull();
+
+    act(() => {
+      getCursor().hide();
+    });
+
+    expect(document.querySelector(".vc-ghost-cursor")).toBeNull();
+    expect(screen.getByTestId("phase")).toHaveTextContent("hidden");
+  });
 });
 
 describe("GhostCursorOverlay", () => {

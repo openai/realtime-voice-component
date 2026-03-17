@@ -134,6 +134,16 @@ function connect(transport: WebRtcRealtimeTransport, onError: any, signal?: Abor
   });
 }
 
+function baseSession(activationMode: "push-to-talk" | "vad" = "push-to-talk") {
+  return {
+    model: "gpt-realtime-1.5",
+    instructions: "test",
+    tools: [],
+    activationMode,
+    outputMode: "tool-only" as const
+  };
+}
+
 async function connectAndOpen(
   transport: WebRtcRealtimeTransport,
   peerConnections: MockPeerConnection[],
@@ -153,6 +163,7 @@ describe("WebRtcRealtimeTransport", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -243,6 +254,193 @@ describe("WebRtcRealtimeTransport", () => {
     expect(track.stop).toHaveBeenCalledTimes(1);
     expect(peerConnection.dataChannel.close).toHaveBeenCalledTimes(1);
     expect(peerConnection.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects insecure contexts before opening WebRTC resources", async () => {
+    const { onError, peerConnections, transport } = setupTransportTest();
+
+    Object.defineProperty(window, "isSecureContext", {
+      configurable: true,
+      value: false
+    });
+
+    await expect(connect(transport, onError)).rejects.toThrow(
+      "Voice control requires HTTPS or localhost because microphone access only works in secure contexts."
+    );
+    expect(peerConnections).toHaveLength(0);
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("rejects browsers without required WebRTC APIs", async () => {
+    const transport = new WebRtcRealtimeTransport();
+    const onError = vi.fn();
+
+    vi.unstubAllGlobals();
+    Object.defineProperty(window, "isSecureContext", {
+      configurable: true,
+      value: true
+    });
+    Object.defineProperty(window, "RTCPeerConnection", {
+      configurable: true,
+      value: undefined
+    });
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: undefined
+    });
+
+    await expect(connect(transport, onError)).rejects.toThrow(
+      "WebRTC voice control requires a browser with mediaDevices and RTCPeerConnection support."
+    );
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("posts direct auth-token requests to the Realtime calls endpoint", async () => {
+    const { fetchMock, onError, peerConnections, transport } = setupTransportTest();
+
+    const connectPromise = connect(transport, onError);
+    const peerConnection = getPeerConnection(peerConnections);
+    peerConnection.dataChannel.open();
+    await connectPromise;
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.openai.com/v1/realtime/calls",
+      expect.objectContaining({
+        body: "offer-sdp",
+        method: "POST"
+      })
+    );
+
+    const [, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(requestInit.headers).toMatchObject({
+      Authorization: "Bearer client-secret",
+      "Content-Type": "application/sdp"
+    });
+  });
+
+  it("forwards parsed server events and surfaces malformed payloads", async () => {
+    const { onError, peerConnections, transport } = setupTransportTest();
+    const onServerEvent = vi.fn();
+
+    const connectPromise = transport.connect({
+      auth: {
+        type: "auth_token",
+        authToken: "client-secret"
+      },
+      session: baseSession(),
+      audioPlaybackEnabled: false,
+      onServerEvent,
+      onError: onError as (error: Error) => void
+    });
+
+    const peerConnection = getPeerConnection(peerConnections);
+    peerConnection.dataChannel.open();
+    await connectPromise;
+
+    peerConnection.dataChannel.dispatchEvent(
+      new MessageEvent("message", {
+        data: JSON.stringify({ type: "response.created", response_id: "resp_123" })
+      })
+    );
+    peerConnection.dataChannel.dispatchEvent(
+      new MessageEvent("message", {
+        data: "{not-json"
+      })
+    );
+
+    expect(onServerEvent).toHaveBeenCalledWith({
+      type: "response.created",
+      response_id: "resp_123"
+    });
+    expect(onError).toHaveBeenCalledWith(expect.any(Error));
+    expect(onError.mock.calls.at(-1)?.[0]).toBeInstanceOf(SyntaxError);
+  });
+
+  it("sends session updates, capture commands, responses, tool output, and audio toggles after connect", async () => {
+    const { onError, peerConnections, track, transport } = setupTransportTest();
+    const originalCreateElement = document.createElement.bind(document);
+    let createdAudioElement: { muted: boolean } | null = null;
+
+    vi.spyOn(document, "createElement").mockImplementation(((tagName: string, options?: ElementCreationOptions) => {
+      const element = originalCreateElement(tagName, options);
+      if (tagName === "audio") {
+        createdAudioElement = element as HTMLAudioElement;
+      }
+      return element;
+    }) as typeof document.createElement);
+    const getCreatedAudioElement = () => {
+      if (!createdAudioElement) {
+        throw new Error("Expected the transport to create an audio element.");
+      }
+
+      return createdAudioElement;
+    };
+
+    const peerConnection = await connectAndOpen(transport, peerConnections, onError);
+
+    expect(getCreatedAudioElement().muted).toBe(true);
+    expect(track.enabled).toBe(false);
+
+    transport.updateSession({
+      ...baseSession("push-to-talk"),
+      instructions: "updated instructions"
+    });
+    transport.startCapture();
+    expect(track.enabled).toBe(true);
+    transport.stopCapture();
+    expect(track.enabled).toBe(false);
+    transport.sendFunctionResult("call_123", { ok: true });
+    transport.requestResponse();
+    transport.sendClientEvent({
+      type: "conversation.item.delete",
+      item_id: "item_123"
+    });
+    transport.setAudioPlaybackEnabled(true);
+
+    expect(getCreatedAudioElement().muted).toBe(false);
+    expect(peerConnection.dataChannel.send).toHaveBeenCalledWith(
+      JSON.stringify({
+        type: "session.update",
+        session: {
+          type: "realtime",
+          model: "gpt-realtime-1.5",
+          instructions: "updated instructions",
+          tool_choice: "auto",
+          tools: [],
+          output_modalities: ["text"],
+          audio: {
+            input: {
+              turn_detection: null
+            }
+          }
+        }
+      })
+    );
+    expect(peerConnection.dataChannel.send).toHaveBeenCalledWith(
+      JSON.stringify({ type: "input_audio_buffer.clear" })
+    );
+    expect(peerConnection.dataChannel.send).toHaveBeenCalledWith(
+      JSON.stringify({ type: "input_audio_buffer.commit" })
+    );
+    expect(peerConnection.dataChannel.send).toHaveBeenCalledWith(
+      JSON.stringify({ type: "response.create" })
+    );
+    expect(peerConnection.dataChannel.send).toHaveBeenCalledWith(
+      JSON.stringify({
+        type: "conversation.item.create",
+        item: {
+          type: "function_call_output",
+          call_id: "call_123",
+          output: JSON.stringify({ ok: true })
+        }
+      })
+    );
+    expect(peerConnection.dataChannel.send).toHaveBeenCalledWith(
+      JSON.stringify({
+        type: "conversation.item.delete",
+        item_id: "item_123"
+      })
+    );
   });
 
   it("posts SDP and serialized session payload to a session endpoint", async () => {

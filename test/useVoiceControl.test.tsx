@@ -1435,6 +1435,52 @@ describe("VoiceControlWidget", () => {
     getBoundingClientRectSpy.mockRestore();
   });
 
+  it("snaps to the nearest corner when the drag ends with pointercancel", async () => {
+    const transport = new MockRealtimeTransport();
+    const controller = createWidgetController(transport);
+    const getBoundingClientRectSpy = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(() => createDomRect(74, 44));
+
+    render(<VoiceControlWidget controller={controller} snapToCorners />);
+
+    const handle = screen.getByRole("button", { name: /drag widget/i });
+    fireEvent.pointerDown(handle, { clientX: 900, clientY: 660, pointerId: 4 });
+    fireEvent.pointerMove(window, { clientX: 90, clientY: 60, pointerId: 4 });
+    fireEvent.pointerCancel(window, { clientX: 90, clientY: 60, pointerId: 4 });
+
+    await waitFor(() => {
+      expect(window.localStorage.getItem(CORNER_STORAGE_KEY)).toBe(
+        JSON.stringify({ corner: "top-left" })
+      );
+    });
+
+    getBoundingClientRectSpy.mockRestore();
+  });
+
+  it("does not start dragging from interactive no-drag descendants", () => {
+    const transport = new MockRealtimeTransport();
+    const controller = createWidgetController(transport);
+    const getBoundingClientRectSpy = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(() => createDomRect(74, 44));
+
+    render(<VoiceControlWidget controller={controller} snapToCorners />);
+
+    const handle = screen.getByRole("button", { name: /drag widget/i });
+    const blocker = document.createElement("span");
+    blocker.setAttribute("data-vc-no-drag", "true");
+    handle.appendChild(blocker);
+
+    fireEvent.pointerDown(blocker, { clientX: 900, clientY: 660, pointerId: 5 });
+    fireEvent.pointerMove(window, { clientX: 90, clientY: 60, pointerId: 5 });
+    fireEvent.pointerUp(window, { clientX: 90, clientY: 60, pointerId: 5 });
+
+    expect(window.localStorage.getItem(CORNER_STORAGE_KEY)).toBeNull();
+
+    getBoundingClientRectSpy.mockRestore();
+  });
+
   it("uses snapDefaultCorner for initial PIP placement", async () => {
     const transport = new MockRealtimeTransport();
     const controller = createWidgetController(transport);
@@ -1553,6 +1599,57 @@ describe("VoiceControlWidget", () => {
     getBoundingClientRectSpy.mockRestore();
   });
 
+  it("reloads persisted corner state when widgetId changes", async () => {
+    const transport = new MockRealtimeTransport();
+    const controller = createWidgetController(transport);
+    const getBoundingClientRectSpy = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(() => createDomRect(74, 44));
+
+    window.localStorage.setItem(
+      "voice-control-corner:v1:voice-alpha",
+      JSON.stringify({ corner: "top-left" })
+    );
+    window.localStorage.setItem(
+      "voice-control-corner:v1:voice-beta",
+      JSON.stringify({ corner: "top-right" })
+    );
+
+    const { rerender } = render(
+      <VoiceControlWidget
+        controller={controller}
+        snapToCorners
+        widgetId="voice-alpha"
+      />
+    );
+
+    await waitFor(() => {
+      expect(getWidgetRoot()).toHaveStyle({
+        left: "16px",
+        right: "auto",
+        top: "16px"
+      });
+    });
+
+    rerender(
+      <VoiceControlWidget
+        controller={controller}
+        snapToCorners
+        widgetId="voice-beta"
+      />
+    );
+
+    await waitFor(() => {
+      expect(getWidgetRoot()).toHaveStyle({
+        left: "auto",
+        right: "16px",
+        top: "16px"
+      });
+    });
+
+    getBoundingClientRectSpy.mockRestore();
+  });
+
   it("stays pinned to the same corner when the viewport changes", async () => {
     const transport = new MockRealtimeTransport();
     const controller = createWidgetController(transport);
@@ -1601,6 +1698,44 @@ describe("VoiceControlWidget", () => {
         top: "16px",
         transform: "none"
       });
+    });
+
+    getBoundingClientRectSpy.mockRestore();
+  });
+
+  it("falls back to window resize listeners when ResizeObserver is unavailable", async () => {
+    const transport = new MockRealtimeTransport();
+    const controller = createWidgetController(transport);
+    const getBoundingClientRectSpy = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(() => createDomRect(74, 44));
+    const addEventListenerSpy = vi.spyOn(window, "addEventListener");
+    const originalResizeObserver = globalThis.ResizeObserver;
+
+    Object.defineProperty(globalThis, "ResizeObserver", {
+      configurable: true,
+      value: undefined
+    });
+
+    render(
+      <VoiceControlWidget
+        controller={controller}
+        persistPosition={false}
+        snapDefaultCorner="top-right"
+        snapToCorners
+      />
+    );
+
+    await act(async () => {
+      window.dispatchEvent(new Event("resize"));
+      await Promise.resolve();
+    });
+
+    expect(addEventListenerSpy).toHaveBeenCalledWith("resize", expect.any(Function));
+
+    Object.defineProperty(globalThis, "ResizeObserver", {
+      configurable: true,
+      value: originalResizeObserver
     });
 
     getBoundingClientRectSpy.mockRestore();
