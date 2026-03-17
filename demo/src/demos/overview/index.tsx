@@ -62,6 +62,7 @@ const setTheme = defineVoiceTool({
 
 const controller = createVoiceControlController({
   auth: { sessionEndpoint: "/session" },
+  activationMode: "vad",
   instructions: "Use only the provided tools.",
   outputMode: "tool-only",
   tools: [setTheme]
@@ -74,26 +75,29 @@ export function Example() {
 
         <DemoSection
           heading="Server Code"
-          description="Proxy the browser SDP offer and session config to OpenAI."
+          description="Read the incoming multipart body as raw bytes, then forward it to OpenAI unchanged."
         >
-          <DemoCodeBlock language="javascript">{`app.post("/session", async (request, response) => {
-  const contentType = request.header("content-type");
+          <DemoCodeBlock language="javascript">{`app.post(
+  "/session",
+  express.raw({ type: () => true, limit: "2mb" }),
+  async (request, response) => {
+    const contentType = request.header("content-type");
 
-  const realtimeResponse = await fetch("https://api.openai.com/v1/realtime/calls", {
-    method: "POST",
-    headers: {
-      Authorization: \`Bearer \${process.env.OPENAI_API_KEY}\`,
-      ...(contentType ? { "Content-Type": contentType } : {})
-    },
-    body: request,
-    duplex: "half"
-  });
+    const realtimeResponse = await fetch("https://api.openai.com/v1/realtime/calls", {
+      method: "POST",
+      headers: {
+        Authorization: \`Bearer \${process.env.OPENAI_API_KEY}\`,
+        ...(contentType ? { "Content-Type": contentType } : {})
+      },
+      body: request.body
+    });
 
-  response
-    .status(realtimeResponse.status)
-    .type(realtimeResponse.headers.get("content-type") ?? "application/sdp")
-    .send(await realtimeResponse.text());
-});`}</DemoCodeBlock>
+    response
+      .status(realtimeResponse.status)
+      .type(realtimeResponse.headers.get("content-type") ?? "application/sdp")
+      .send(await realtimeResponse.text());
+  }
+);`}</DemoCodeBlock>
         </DemoSection>
 
         <DemoSection
