@@ -56,7 +56,7 @@ shows:
 Run it locally with:
 
 ```bash
-corepack pnpm demo
+npm run demo
 ```
 
 ## Package Shape
@@ -88,7 +88,7 @@ readiness.
 Install it from a local checkout:
 
 ```bash
-corepack pnpm add ../path/to/realtime-voice-component zod
+npm install ../path/to/realtime-voice-component zod
 ```
 
 Then import from `realtime-voice-component` and
@@ -103,3 +103,4 @@ Then import from `realtime-voice-component` and
 - [Widget and ghost cursor](./docs/widget-and-cursor.md)
 - [Authentication](./docs/authentication.md)
 - [Showcase demo architecture](./docs/demo-architecture.md)
+- [API reference](./docs/api-reference.md)

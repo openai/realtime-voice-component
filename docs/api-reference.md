@@ -2,7 +2,7 @@
 
 This page is the short version.
 
-If you want the full generated reference, go to [`./api/README.md`](./api/README.md).
+If you want the generated reference tree, start with [`./api/README.md`](./api/README.md).
 
 ## Main exports
 

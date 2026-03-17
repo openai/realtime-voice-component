@@ -22,7 +22,7 @@ This package currently supports local installation only. From your app, install
 it from a clone of this repo:
 
 ```bash
-corepack pnpm add ../path/to/realtime-voice-component zod
+npm install ../path/to/realtime-voice-component zod
 ```
 
 Replace `../path/to/realtime-voice-component` with the path to your local clone.
@@ -83,25 +83,26 @@ type Theme = "light" | "dark";
 
 export function ThemeExample() {
   const [theme, setTheme] = useState<Theme>("light");
-
-  const controller = createVoiceControlController({
-    auth: { sessionEndpoint: "/session" },
-    instructions: "Use the registered tools to control the page. Prefer tools over chat.",
-    outputMode: "tool-only",
-    tools: [
-      defineVoiceTool({
-        name: "set_theme",
-        description: "Switch the page theme between light and dark mode.",
-        parameters: z.object({
-          theme: z.enum(["light", "dark"])
-        }),
-        execute: async ({ theme }) => {
-          setTheme(theme);
-          return { ok: true, theme };
-        }
-      })
-    ]
-  });
+  const [controller] = useState(() =>
+    createVoiceControlController({
+      auth: { sessionEndpoint: "/session" },
+      instructions: "Use the registered tools to control the page. Prefer tools over chat.",
+      outputMode: "tool-only",
+      tools: [
+        defineVoiceTool({
+          name: "set_theme",
+          description: "Switch the page theme between light and dark mode.",
+          parameters: z.object({
+            theme: z.enum(["light", "dark"])
+          }),
+          execute: async ({ theme }) => {
+            setTheme(theme);
+            return { ok: true, theme };
+          }
+        })
+      ]
+    })
+  );
 
   return (
     <>

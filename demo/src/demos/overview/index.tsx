@@ -15,7 +15,7 @@ export function OverviewDemoPage() {
     <DemoPageShell>
       <DemoCard>
         <DemoIntro
-          eyebrow="OpenAI Voice Control React"
+          eyebrow="realtime-voice-component"
           title="Register your tools. Let voice drive the UI."
           body="A lightweight voice runtime for React apps built around app-owned tools."
           emphasis={
@@ -32,7 +32,7 @@ export function OverviewDemoPage() {
           description="Install the package from a local checkout along with zod."
         >
           <DemoCodeBlock language="bash">
-            {`npm add ../path/to/realtime-voice-component zod`}
+            {`npm install ../path/to/realtime-voice-component zod`}
           </DemoCodeBlock>
         </DemoSection>
 

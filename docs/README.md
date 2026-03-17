@@ -13,6 +13,11 @@ dump.
 5. [Authentication](./authentication.md)
 6. [Showcase demo architecture](./demo-architecture.md)
 
+## Reference Docs
+
+- [Short API reference](./api-reference.md)
+- [Generated API reference](./api/README.md)
+
 ## Current Architecture
 
 The package is split into five practical layers:
