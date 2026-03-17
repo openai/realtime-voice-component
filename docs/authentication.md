@@ -12,6 +12,8 @@ Pass:
 auth={{ sessionEndpoint: "/session" }}
 ```
 
+This is the canonical auth contract for the repo.
+
 The client will:
 
 - create the local SDP offer in the browser
@@ -29,7 +31,10 @@ auth={{
 }}
 ```
 
-## Example Express handler
+Leave the incoming multipart body untouched unless you intentionally want to
+merge or override the session on your server before forwarding it to OpenAI.
+
+Example Express handler:
 
 ```ts
 app.post("/session", async (request, response) => {
@@ -52,9 +57,6 @@ app.post("/session", async (request, response) => {
 });
 ```
 
-Leave the incoming multipart body untouched unless you intentionally want to
-merge or override the session on your server before forwarding it to OpenAI.
-
 ## Legacy Compatibility
 
 The library still supports the older client-secret bootstrap paths:
@@ -63,7 +65,8 @@ The library still supports the older client-secret bootstrap paths:
 - `auth={{ getClientSecret: async () => "..." }}`
 
 Use these only if you specifically want the browser to POST SDP directly to
-OpenAI with a short-lived client secret.
+OpenAI with a short-lived client secret. They are compatibility paths, not the
+recommended quickstart.
 
 ## `getClientSecret`
 

@@ -19,7 +19,21 @@ Use `createVoiceControlController(options)` when you need to:
 - update instructions or tools without recreating the whole tree
 - build custom controls for connect, disconnect, and capture
 
-The demo app uses this second pattern for the interactive demos.
+The demo app uses this second pattern for its shared demo session across the
+overview, theme, form, and chess routes.
+
+## Ownership Rule
+
+There are two valid ways to bind React to the runtime:
+
+1. pass an external controller into `useVoiceControl(controller)`
+2. pass options into `useVoiceControl(options)` and let the hook create one
+
+That ownership choice matters:
+
+- if you pass a controller, your app owns its lifecycle
+- if you pass options, the hook creates, reconfigures, and destroys the
+  controller for you
 
 ## What The Controller Tracks
 
@@ -33,6 +47,9 @@ The controller snapshot includes:
 - `latestToolCall`
 - `sessionConfig`
 
+`transcript` keeps the latest assembled transcript text, not a full transcript
+history.
+
 It also exposes methods for:
 
 - `connect()` and `disconnect()`
@@ -43,6 +60,13 @@ It also exposes methods for:
 - `requestResponse()`
 - `sendClientEvent()`
 - `clearToolCalls()`
+
+Controller-only methods:
+
+- `configure(options)`
+- `destroy()`
+- `getSnapshot()`
+- `subscribe(listener)`
 
 ## Connection Model
 
@@ -55,6 +79,9 @@ The runtime now defaults to a unified server-proxied WebRTC handshake:
 
 Legacy client-secret bootstrap paths are still supported, but they are no
 longer the primary flow in this repo.
+
+The recommended auth contract is still `auth={{ sessionEndpoint: "/session" }}`.
+Treat `tokenEndpoint` and `getClientSecret` as legacy compatibility paths.
 
 Important controller behavior:
 
@@ -112,24 +139,6 @@ messages after the user interface changes.
 The theme demo sends the current theme. The form demo sends the current field
 state. That keeps the model grounded in what is actually visible on the page.
 
-Example:
-
-```ts
-controller.sendClientEvent({
-  type: "conversation.item.create",
-  item: {
-    type: "message",
-    role: "system",
-    content: [
-      {
-        type: "input_text",
-        text: buildCurrentStateMessage()
-      }
-    ]
-  }
-});
-```
-
 ## Post-Tool Follow-Up Responses
 
 Set `postToolResponse: true` when one tool result should naturally lead to the
@@ -155,6 +164,35 @@ You can adjust the live session without recreating the controller:
 `updateSession()` merges runtime patches with the original options, including
 nested audio config.
 
+## Important Options
+
+Useful runtime options:
+
+- `auth`
+- `tools`
+- `instructions`
+- `model`
+- `activationMode`
+- `outputMode`
+- `postToolResponse`
+- `autoConnect`
+- `debug`
+- `maxToolCallHistory`
+
+Advanced Realtime options:
+
+- `session`
+- `audio`
+- `include`
+- `maxOutputTokens`
+- `prompt`
+- `toolChoice`
+- `tracing`
+- `truncation`
+
+`maxToolCallHistory` defaults to a bounded history. Pass `null` for unlimited
+history.
+
 ## Recommended Patterns
 
 - reuse a controller when multiple surfaces need the same voice session
@@ -162,3 +200,10 @@ nested audio config.
 - send state updates after visible app changes
 - use `postToolResponse` only when the next step should happen automatically
 - prefer `tool-only` for deterministic UI control flows
+
+## Escape Hatches
+
+- `requestResponse()` sends `response.create`
+- `sendClientEvent(event)` sends a raw client event through the transport
+- `transportFactory` lets you inject a custom transport for tests or specialized
+  runtimes

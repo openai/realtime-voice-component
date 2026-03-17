@@ -1,19 +1,24 @@
 # Demo Architecture
 
-The demo app is the clearest example of how this package is meant to be used.
-It shows both the happy path and the patterns that scale better than a single
-inline example.
+The demo app is the main showcase for how this package is meant to be used. It
+shows both the happy path and the patterns that scale better than a single
+inline integration.
 
 ## Overall Structure
 
-The demo app has three routes:
+The demo app has four routes:
 
 - overview
 - theme demo
 - form demo
+- chess demo
 
-The overview route is static. The theme and form routes share one controller
-through `DemoSessionProvider`.
+All four routes sit inside `DemoSessionProvider`, which owns one shared
+controller for the whole demo app.
+
+The overview route configures that shared controller with an inert overview
+session. The theme, form, and chess routes reuse the same controller with
+route-specific instructions and tools.
 
 ## Shared Controller Pattern
 
@@ -99,3 +104,10 @@ Most apps should copy these ideas, not the exact demo code:
 - visible confirmation
 - app-owned validation
 - controller reuse where it simplifies routing or complex UI
+
+## What Should Stay Demo-Only
+
+- wake-word activation
+- richer choreography and showcase polish
+- larger multi-route teaching surfaces that are useful to study but harder to
+  copy directly

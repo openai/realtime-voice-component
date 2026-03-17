@@ -1,14 +1,17 @@
 # Docs Overview
 
-The package is still experimental, so the most useful structure is based on the real layers in
-the code rather than a long API dump.
+The package is still experimental, so the docs optimize for practical
+architecture choices and the real package/demo layers rather than a long API
+dump.
 
 ## Read In This Order
 
 1. [Getting started](./getting-started.md)
-2. [Controller and runtime](./controller-runtime.md)
-3. [Widget and ghost cursor](./widget-and-cursor.md)
-4. [Demo architecture](./demo-architecture.md)
+2. [Architecture choices](./architecture-choices.md)
+3. [Controller and runtime](./controller-runtime.md)
+4. [Widget and ghost cursor](./widget-and-cursor.md)
+5. [Authentication](./authentication.md)
+6. [Showcase demo architecture](./demo-architecture.md)
 
 ## Current Architecture
 
@@ -24,7 +27,7 @@ The package is split into five practical layers:
 
 - how to wire a working integration quickly
 - when to use the widget versus the controller directly
-- how the demo code models best practices
+- how the showcase demo models richer patterns without redefining the package contract
 - which behaviors are important but easy to miss, such as tool-only no-op handling, post-tool follow-ups, and state sync via system messages
 
 ## Important Framing

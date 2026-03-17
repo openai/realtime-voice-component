@@ -27,9 +27,9 @@ Important constraints:
 
 ## Controller-Based Widget Integration
 
-```tsx
-<VoiceControlWidget controller={controller} snapToCorners />
-```
+Use the widget when launcher UI is the right interaction model. If the
+interaction model is wrong, use the controller directly instead of trying to
+force the widget into a custom surface.
 
 ## Layout And Positioning
 
@@ -91,23 +91,7 @@ The hook exposes:
 
 ## How To Use The Cursor Well
 
-Wrap the real app action with `run()`:
-
-```tsx
-await cursor.run(
-  {
-    element: button,
-    pulseElement: button
-  },
-  async () => {
-    setTheme("dark");
-    return { ok: true };
-  },
-  {
-    from: "previous"
-  }
-);
-```
+The showcase demo is the place to study richer cursor choreography.
 
 Useful details from the implementation:
 
@@ -129,3 +113,5 @@ Useful details from the implementation:
 - use the widget when you want a launcher quickly
 - use the ghost cursor when you want visible confirmation
 - use the controller directly when the widget is too opinionated
+- keep wake word and richer interaction choreography in the showcase demo unless
+  they become part of the package contract later

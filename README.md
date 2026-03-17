@@ -1,156 +1,105 @@
 # realtime-voice-component
 
-Experimental voice controls for browser apps using OpenAI Realtime.
+React/browser voice controls for tool-constrained UIs built on OpenAI Realtime.
 
 > Warning
-> This repository is for education, demos, and reference implementations.
-> OpenAI does not plan to turn it into a broadly supported production UI kit,
-> actively maintain it as a polished framework, or take responsibility for
-> productizing it for your use case. Treat it as example code that helps you
-> understand the pattern and build your own implementation.
+> This repository is an open-source reference implementation. It is useful for
+> education, demos, and local adoption, but it is not a promise of long-term
+> product support or a production-ready UI kit.
 
-This package is for apps where you define the exact actions the assistant can
-take. The model does not get free browser or desktop control. Instead, your app
-registers narrow tools, the runtime exposes those tools to Realtime, and your
-UI stays responsible for the actual state changes and confirmation.
+## What This Package Is
 
-The package is not currently published to npm. Install it from a local checkout of
-this repo for now.
+This package is for apps where:
 
-## Local Install Only
+- your app defines the exact actions the assistant can take
+- tools stay app-owned and narrow
+- the UI remains responsible for the visible state change
+- you want a React-friendly controller and an optional launcher widget
 
-From your app, install the package from a local clone of this repository:
+The package is intentionally opinionated about browser UI flows. It is not a
+general-purpose orchestration framework and it is not a replacement for raw
+Realtime transports.
+
+## Choose The Right Layer
+
+Use this package when you want a React/browser layer for voice-driven UI:
+
+- a reusable controller with React bindings
+- a packaged launcher widget
+- optional visible confirmation via the ghost cursor
+- a pattern centered on app-owned tools, not free-form browser automation
+
+Use raw Realtime when you want lower-level transport and session control:
+
+- custom audio handling
+- non-React runtimes
+- your own UI surface and state model from scratch
+
+Use [`openai-agents-js`](https://github.com/openai/openai-agents-js) when you
+need a broader headless SDK:
+
+- agent orchestration and handoffs
+- richer hosted-tool and MCP flows
+- server-side or multi-runtime agent systems beyond a browser UI package
+
+## Demo App
+
+The repo’s [`demo/`](./demo) app is the main runnable teaching surface. It
+shows:
+
+- a starter theme-switching flow
+- a multi-step form flow
+- a richer shared-state chess flow
+- shared controller reuse across multiple screens
+- optional wake-word experimentation layered on top of the runtime
+
+Run it locally with:
 
 ```bash
-npm add ../path/to/realtime-voice-component zod
+corepack pnpm demo
 ```
 
-Replace `../path/to/realtime-voice-component` with the path to your clone. After
-installing, import from `realtime-voice-component` and
+## Package Shape
+
+- `defineVoiceTool()` turns a Zod-backed app action into a Realtime function
+  tool.
+- `createVoiceControlController()` owns the session, transport, tool execution,
+  transcript assembly, and connection lifecycle.
+- `useVoiceControl()` binds React to either an external controller or an
+  internally owned one.
+- `VoiceControlWidget` is a launcher UI on top of the controller.
+- `useGhostCursor()` and `GhostCursorOverlay` are optional visible confirmation
+  helpers.
+
+## Recommended Default Flow
+
+For most browser apps in this repo, the recommended path is:
+
+1. proxy the browser SDP + session config through your own `/session` endpoint
+2. register one narrow tool that maps to one real app action
+3. start with the theme demo or a small controller-based integration
+4. send current UI state back into the session after visible changes
+
+## Local Install
+
+This repo is still optimized for local open-source use rather than npm release
+readiness.
+
+Install it from a local checkout:
+
+```bash
+corepack pnpm add ../path/to/realtime-voice-component zod
+```
+
+Then import from `realtime-voice-component` and
 `realtime-voice-component/styles.css`.
-
-## How The Pieces Fit Together
-
-- `defineVoiceTool()` turns a Zod-backed app action into a Realtime function tool.
-- `createVoiceControlController()` owns the Realtime session, tool execution, transcript, and connection lifecycle.
-- `useVoiceControl()` binds React to either a controller you created or options that should create one for you.
-- `VoiceControlWidget` gives you a small floating launcher on top of the runtime.
-- `useGhostCursor()` and `GhostCursorOverlay` are optional visual feedback layers for showing the user what changed.
-
-## Fastest Integration Path
-
-The simplest path is:
-
-1. Add a small server endpoint that proxies the browser SDP offer to OpenAI.
-2. Register a narrow tool that maps to one real app action.
-3. Render the launcher widget.
-4. Optionally add the ghost cursor so tool effects are visible.
-
-Server example:
-
-```ts
-app.post("/session", async (request, response) => {
-  const contentType = request.header("content-type");
-
-  const realtimeResponse = await fetch("https://api.openai.com/v1/realtime/calls", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      ...(contentType ? { "Content-Type": contentType } : {})
-    },
-    body: request,
-    duplex: "half"
-  });
-
-  response
-    .status(realtimeResponse.status)
-    .type(realtimeResponse.headers.get("content-type") ?? "application/sdp")
-    .send(await realtimeResponse.text());
-});
-```
-
-React example:
-
-```tsx
-import { useRef, useState } from "react";
-import { z } from "zod";
-import {
-  createVoiceControlController,
-  defineVoiceTool,
-  GhostCursorOverlay,
-  useGhostCursor,
-  VoiceControlWidget
-} from "realtime-voice-component";
-import "realtime-voice-component/styles.css";
-
-type Theme = "light" | "dark";
-
-export function SettingsPage() {
-  const [theme, setTheme] = useState<Theme>("light");
-  const buttonRef = useRef<HTMLButtonElement | null>(null);
-  const cursor = useGhostCursor();
-  const controller = createVoiceControlController({
-    auth: { sessionEndpoint: "/session" },
-    instructions: "Use the registered tools to control the page. Prefer tools over chat.",
-    outputMode: "tool-only",
-    tools: [
-      defineVoiceTool({
-        name: "set_theme",
-        description: "Switch the visible page theme between light and dark mode.",
-        parameters: z.object({
-          theme: z.enum(["light", "dark"])
-        }),
-        async execute({ theme }) {
-          const button = buttonRef.current;
-
-          return cursor.run(
-            {
-              element: button,
-              pulseElement: button
-            },
-            async () => {
-              setTheme(theme);
-              return { ok: true, theme };
-            },
-            {
-              from: "previous"
-            }
-          );
-        }
-      })
-    ]
-  });
-
-  return (
-    <>
-      <GhostCursorOverlay state={cursor.cursorState} />
-
-      <button ref={buttonRef} type="button">
-        Current theme: {theme}
-      </button>
-
-      <VoiceControlWidget controller={controller} snapToCorners />
-    </>
-  );
-}
-```
-
-## Best Practices From This Repo
-
-- Keep tools narrow and app-owned. Good tools map to one real app action.
-- Default to `outputMode="tool-only"` when the assistant should act instead of chat.
-- Prefer `auth={{ sessionEndpoint: "/session" }}` for browser WebRTC apps so your server stays in charge of session setup.
-- In this repo, prefer creating a controller explicitly and passing `controller={controller}` to `VoiceControlWidget`.
-- Move to `createVoiceControlController()` and `useVoiceControl()` when you need custom UI, richer state handling, or push-to-talk flows.
-- Use `sendClientEvent()` to send fresh app state back into the session when the model needs current context.
-- Use `postToolResponse` for multi-step workflows where one tool result should lead to the next action.
-- Use the ghost cursor only as visible confirmation for real UI changes, not as fake automation.
-- Legacy `tokenEndpoint` and `getClientSecret` auth paths still work, but they are now compatibility options rather than the default quickstart.
 
 ## Docs
 
 - [Docs overview](./docs/README.md)
 - [Getting started](./docs/getting-started.md)
+- [Architecture choices](./docs/architecture-choices.md)
 - [Controller and runtime](./docs/controller-runtime.md)
 - [Widget and ghost cursor](./docs/widget-and-cursor.md)
-- [Demo architecture](./docs/demo-architecture.md)
+- [Authentication](./docs/authentication.md)
+- [Showcase demo architecture](./docs/demo-architecture.md)
