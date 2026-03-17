@@ -208,12 +208,12 @@ function mapTruncation(truncation: RealtimeTruncation | undefined) {
   };
 }
 
-export function buildSessionUpdateEvent(session: TransportSessionConfig) {
+export function buildRealtimeSessionPayload(session: TransportSessionConfig) {
   const toolChoice =
     session.toolChoice ??
     (session.tools.length > 0 && session.outputMode === "tool-only" ? "required" : "auto");
 
-  const sessionPayload = {
+  return {
     type: "realtime",
     model: session.model,
     instructions: session.instructions,
@@ -228,14 +228,14 @@ export function buildSessionUpdateEvent(session: TransportSessionConfig) {
     ...(session.metadata !== undefined ? { metadata: session.metadata } : {}),
     ...(session.prompt !== undefined ? { prompt: mapPrompt(session.prompt) } : {}),
     ...(session.tracing !== undefined ? { tracing: mapTracing(session.tracing) } : {}),
-    ...(session.truncation !== undefined ? { truncation: mapTruncation(session.truncation) } : {})
+    ...(session.truncation !== undefined ? { truncation: mapTruncation(session.truncation) } : {}),
+    ...(session.raw ?? {})
   };
+}
 
+export function buildSessionUpdateEvent(session: TransportSessionConfig) {
   return {
     type: "session.update",
-    session: {
-      ...sessionPayload,
-      ...(session.raw ?? {})
-    }
+    session: buildRealtimeSessionPayload(session)
   };
 }

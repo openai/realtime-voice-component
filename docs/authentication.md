@@ -1,49 +1,29 @@
 # Authentication
 
-Use a server endpoint to mint short-lived Realtime client secrets.
+Use a server endpoint to proxy the browser WebRTC offer to OpenAI.
 
-Do not mint Realtime client secrets in the browser.
+Do not use a standard OpenAI API key in the browser.
 
-## `tokenEndpoint`
+## `sessionEndpoint`
 
 Pass:
 
 ```tsx
-auth={{ tokenEndpoint: "/token" }}
+auth={{ sessionEndpoint: "/session" }}
 ```
 
 The client will:
 
-- send `GET /token`
-- append the selected model as `?model=...`
-- expect your server to return a short-lived client secret
+- create the local SDP offer in the browser
+- send a `POST /session` multipart request with `sdp` and serialized session config
+- expect your server to return the answer SDP from OpenAI
 
-Accepted response shapes:
-
-```json
-{ "value": "rtm_..." }
-```
-
-```json
-{ "client_secret": "rtm_..." }
-```
-
-```json
-{
-  "client_secret": {
-    "value": "rtm_..."
-  }
-}
-```
-
-The simplest response is a flattened `value`.
-
-If you need custom headers or credentials, use `tokenRequestInit`:
+If you need custom headers or credentials, use `sessionRequestInit`:
 
 ```tsx
 auth={{
-  tokenEndpoint: "/token",
-  tokenRequestInit: {
+  sessionEndpoint: "/session",
+  sessionRequestInit: {
     credentials: "include"
   }
 }}
@@ -52,40 +32,38 @@ auth={{
 ## Example Express handler
 
 ```ts
-app.get("/token", async (request, response) => {
-  const realtimeResponse = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
+app.post("/session", async (request, response) => {
+  const contentType = request.header("content-type");
+
+  const realtimeResponse = await fetch("https://api.openai.com/v1/realtime/calls", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      "Content-Type": "application/json"
+      ...(contentType ? { "Content-Type": contentType } : {})
     },
-    body: JSON.stringify({
-      session: {
-        type: "realtime",
-        model:
-          typeof request.query.model === "string"
-            ? request.query.model
-            : "gpt-realtime-1.5",
-        output_modalities: ["text"]
-      }
-    })
+    body: request,
+    duplex: "half"
   });
 
-  if (!realtimeResponse.ok) {
-    response.status(realtimeResponse.status).send(await realtimeResponse.text());
-    return;
-  }
-
-  const payload = await realtimeResponse.json();
-  const value =
-    payload.value ??
-    (typeof payload.client_secret === "object" && payload.client_secret !== null
-      ? payload.client_secret.value
-      : payload.client_secret);
-
-  response.json({ ...payload, value });
+  response
+    .status(realtimeResponse.status)
+    .type(realtimeResponse.headers.get("content-type") ?? "application/sdp")
+    .send(await realtimeResponse.text());
 });
 ```
+
+Leave the incoming multipart body untouched unless you intentionally want to
+merge or override the session on your server before forwarding it to OpenAI.
+
+## Legacy Compatibility
+
+The library still supports the older client-secret bootstrap paths:
+
+- `auth={{ tokenEndpoint: "/token" }}`
+- `auth={{ getClientSecret: async () => "..." }}`
+
+Use these only if you specifically want the browser to POST SDP directly to
+OpenAI with a short-lived client secret.
 
 ## `getClientSecret`
 
@@ -101,4 +79,5 @@ auth={{
 }}
 ```
 
-Use this when you want full control over retries, auth headers, or request flow.
+Use this only for the legacy client-secret flow when you want full control over
+retries, auth headers, or request flow.

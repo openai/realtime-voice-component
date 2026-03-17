@@ -31,6 +31,10 @@ optional audio: RealtimeAudioConfig;
 ```ts
 auth: 
   | {
+  sessionEndpoint: string;
+  sessionRequestInit?: RequestInit;
+}
+  | {
   getClientSecret: () => Promise<string>;
 }
   | {

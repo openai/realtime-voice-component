@@ -6,10 +6,12 @@ import type { RealtimeTransport, TransportConnectOptions, TransportSessionConfig
 export class MockRealtimeTransport implements RealtimeTransport {
   public sentClientEvents: unknown[] = [];
   public session: TransportSessionConfig | null = null;
+  public connectOptions: TransportConnectOptions | null = null;
   private onServerEvent: ((event: RealtimeServerEvent) => void) | null = null;
   private onError: ((error: Error) => void) | null = null;
 
   async connect(options: TransportConnectOptions): Promise<void> {
+    this.connectOptions = options;
     this.onServerEvent = options.onServerEvent;
     this.onError = options.onError;
     this.session = options.session;
@@ -20,6 +22,7 @@ export class MockRealtimeTransport implements RealtimeTransport {
     this.onServerEvent = null;
     this.onError = null;
     this.session = null;
+    this.connectOptions = null;
     this.sentClientEvents.push({ type: "__disconnect" });
   }
 

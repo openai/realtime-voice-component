@@ -58,6 +58,8 @@ Callbacks and transport hooks:
 
 Auth options:
 
+- `auth={{ sessionEndpoint: "/session" }}`
+- `auth={{ sessionEndpoint: "/session", sessionRequestInit }}`
 - `auth={{ tokenEndpoint: "/token" }}`
 - `auth={{ tokenEndpoint: "/token", tokenRequestInit }}`
 - `auth={{ getClientSecret }}`

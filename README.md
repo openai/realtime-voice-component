@@ -41,7 +41,7 @@ installing, import from `realtime-voice-component` and
 
 The simplest path is:
 
-1. Add a small server endpoint that returns a short-lived Realtime client secret.
+1. Add a small server endpoint that proxies the browser SDP offer to OpenAI.
 2. Register a narrow tool that maps to one real app action.
 3. Render the launcher widget.
 4. Optionally add the ghost cursor so tool effects are visible.
@@ -49,36 +49,23 @@ The simplest path is:
 Server example:
 
 ```ts
-app.get("/token", async (request, response) => {
-  const realtimeResponse = await fetch(
-    "https://api.openai.com/v1/realtime/client_secrets",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        session: {
-          type: "realtime",
-          model:
-            typeof request.query.model === "string"
-              ? request.query.model
-              : "gpt-realtime-1.5",
-          output_modalities: ["text"]
-        }
-      })
-    }
-  );
+app.post("/session", async (request, response) => {
+  const contentType = request.header("content-type");
 
-  const payload = await realtimeResponse.json();
-  const value =
-    payload.value ??
-    (typeof payload.client_secret === "object" && payload.client_secret !== null
-      ? payload.client_secret.value
-      : payload.client_secret);
+  const realtimeResponse = await fetch("https://api.openai.com/v1/realtime/calls", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      ...(contentType ? { "Content-Type": contentType } : {})
+    },
+    body: request,
+    duplex: "half"
+  });
 
-  response.json({ ...payload, value });
+  response
+    .status(realtimeResponse.status)
+    .type(realtimeResponse.headers.get("content-type") ?? "application/sdp")
+    .send(await realtimeResponse.text());
 });
 ```
 
@@ -103,7 +90,7 @@ export function SettingsPage() {
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const cursor = useGhostCursor();
   const controller = createVoiceControlController({
-    auth: { tokenEndpoint: "/token" },
+    auth: { sessionEndpoint: "/session" },
     instructions: "Use the registered tools to control the page. Prefer tools over chat.",
     outputMode: "tool-only",
     tools: [
@@ -152,11 +139,13 @@ export function SettingsPage() {
 
 - Keep tools narrow and app-owned. Good tools map to one real app action.
 - Default to `outputMode="tool-only"` when the assistant should act instead of chat.
+- Prefer `auth={{ sessionEndpoint: "/session" }}` for browser WebRTC apps so your server stays in charge of session setup.
 - In this repo, prefer creating a controller explicitly and passing `controller={controller}` to `VoiceControlWidget`.
 - Move to `createVoiceControlController()` and `useVoiceControl()` when you need custom UI, richer state handling, or push-to-talk flows.
 - Use `sendClientEvent()` to send fresh app state back into the session when the model needs current context.
 - Use `postToolResponse` for multi-step workflows where one tool result should lead to the next action.
 - Use the ghost cursor only as visible confirmation for real UI changes, not as fake automation.
+- Legacy `tokenEndpoint` and `getClientSecret` auth paths still work, but they are now compatibility options rather than the default quickstart.
 
 ## Docs
 

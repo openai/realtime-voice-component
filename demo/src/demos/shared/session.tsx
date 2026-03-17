@@ -33,7 +33,7 @@ function buildBaseControllerOptions(
   options: SharedDemoControllerBaseOptions
 ): UseVoiceControlOptions {
   return {
-    auth: { tokenEndpoint: "/token" },
+    auth: { sessionEndpoint: "/session" },
     activationMode: "vad",
     model: "gpt-realtime-1.5",
     outputMode: "tool-only",

@@ -326,6 +326,30 @@ describe("useVoiceControl", () => {
     expect(record?.durationMs).toBeGreaterThanOrEqual(0);
   });
 
+  it("passes sessionEndpoint auth through to the transport", async () => {
+    const transport = new MockRealtimeTransport();
+    const controller = createVoiceControlController({
+      auth: {
+        sessionEndpoint: "/session",
+        sessionRequestInit: {
+          credentials: "include"
+        }
+      },
+      tools: [],
+      transportFactory: () => transport
+    });
+
+    await controller.connect();
+
+    expect(transport.connectOptions?.auth).toMatchObject({
+      type: "session_endpoint",
+      sessionEndpoint: expect.stringMatching(/\/session$/),
+      sessionRequestInit: {
+        credentials: "include"
+      }
+    });
+  });
+
   it("does not expose widget expansion state from the headless controller", () => {
     const transport = new MockRealtimeTransport();
 

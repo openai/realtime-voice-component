@@ -1,4 +1,4 @@
-import { buildSessionUpdateEvent } from "../internal/session";
+import { buildRealtimeSessionPayload, buildSessionUpdateEvent } from "../internal/session";
 import type { ActivationMode, RealtimeClientEvent, RealtimeServerEvent } from "../types";
 
 import type { RealtimeTransport, TransportConnectOptions, TransportSessionConfig } from "./types";
@@ -199,6 +199,41 @@ function waitForDataChannelOpen(
   });
 }
 
+function buildSessionEndpointRequest(
+  sessionEndpoint: string,
+  sessionRequestInit: RequestInit | undefined,
+  sdp: string,
+  session: TransportSessionConfig,
+  signal?: AbortSignal
+) {
+  const formData = new FormData();
+  formData.set("sdp", sdp);
+  formData.set("session", JSON.stringify(buildRealtimeSessionPayload(session)));
+
+  const headers = new Headers(sessionRequestInit?.headers);
+  headers.delete("Content-Type");
+
+  return fetch(sessionEndpoint, {
+    ...sessionRequestInit,
+    method: "POST",
+    headers,
+    body: formData,
+    ...(signal ? { signal } : {})
+  });
+}
+
+function buildDirectRealtimeRequest(authToken: string, sdp: string, signal?: AbortSignal) {
+  return fetch("https://api.openai.com/v1/realtime/calls", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${authToken}`,
+      "Content-Type": "application/sdp"
+    },
+    body: sdp,
+    ...(signal ? { signal } : {})
+  });
+}
+
 export class WebRtcRealtimeTransport implements RealtimeTransport {
   private state: RealtimePeerState = {
     audioElement: null,
@@ -330,15 +365,15 @@ export class WebRtcRealtimeTransport implements RealtimeTransport {
       }
 
       const response = await withAbort(
-        fetch("https://api.openai.com/v1/realtime/calls", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${options.authToken}`,
-            "Content-Type": "application/sdp"
-          },
-          body: sdp,
-          ...(options.signal ? { signal: options.signal } : {})
-        }),
+        options.auth.type === "session_endpoint"
+          ? buildSessionEndpointRequest(
+              options.auth.sessionEndpoint,
+              options.auth.sessionRequestInit,
+              sdp,
+              options.session,
+              options.signal
+            )
+          : buildDirectRealtimeRequest(options.auth.authToken, sdp, options.signal),
         options.signal
       );
 
@@ -348,6 +383,10 @@ export class WebRtcRealtimeTransport implements RealtimeTransport {
       }
 
       const answerSdp = await withAbort(response.text(), options.signal);
+      if (!answerSdp.trim()) {
+        throw new Error("Failed to establish Realtime WebRTC session: empty SDP answer.");
+      }
+
       await withAbort(
         peerConnection.setRemoteDescription({
           type: "answer",

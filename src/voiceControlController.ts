@@ -18,7 +18,7 @@ import type {
   VoiceTool,
   VoiceToolCallRecord
 } from "./types";
-import type { RealtimeTransport } from "./transport/types";
+import type { RealtimeTransport, TransportAuth } from "./transport/types";
 
 const DEFAULT_MODEL = "gpt-realtime-1.5";
 const DEFAULT_INSTRUCTIONS =
@@ -254,6 +254,10 @@ async function resolveClientSecret(
     return clientSecret;
   }
 
+  if (!("tokenEndpoint" in options)) {
+    throw new Error("Session endpoint auth does not provide a client secret.");
+  }
+
   const requestUrl = new URL(
     options.tokenEndpoint,
     typeof window === "undefined" ? "http://localhost" : window.location.origin
@@ -283,6 +287,34 @@ async function resolveClientSecret(
   }
 
   return value;
+}
+
+function resolveEndpointUrl(endpoint: string): string {
+  return new URL(
+    endpoint,
+    typeof window === "undefined" ? "http://localhost" : window.location.origin
+  ).toString();
+}
+
+async function resolveTransportAuth(
+  options: UseVoiceControlOptions["auth"],
+  model: string,
+  signal?: AbortSignal
+): Promise<TransportAuth> {
+  if ("sessionEndpoint" in options) {
+    return {
+      type: "session_endpoint",
+      sessionEndpoint: resolveEndpointUrl(options.sessionEndpoint),
+      ...(options.sessionRequestInit !== undefined
+        ? { sessionRequestInit: options.sessionRequestInit }
+        : {})
+    };
+  }
+
+  return {
+    type: "auth_token",
+    authToken: await resolveClientSecret(options, model, signal)
+  };
 }
 
 function mergeAudioConfig(
@@ -603,7 +635,7 @@ class VoiceControlControllerImpl implements VoiceControlController {
     this.#debugLog("connect.start", this.sessionConfig);
 
     try {
-      const clientSecret = await resolveClientSecret(
+      const auth = await resolveTransportAuth(
         this.#options.auth,
         this.sessionConfig.model,
         connectAbortController.signal
@@ -616,8 +648,7 @@ class VoiceControlControllerImpl implements VoiceControlController {
       this.clearToolCalls();
 
       await transport.connect({
-        authToken: clientSecret,
-        model: this.sessionConfig.model,
+        auth,
         session: this.sessionConfig,
         audioPlaybackEnabled: includesAudio(this.sessionConfig.outputMode),
         signal: connectAbortController.signal,

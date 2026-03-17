@@ -27,7 +27,7 @@ import {
 } from "realtime-voice-component";
 
 const controller = createVoiceControlController({
-  auth: { tokenEndpoint: "/token" },
+  auth: { sessionEndpoint: "/session" },
   instructions: "Use the provided tools.",
   outputMode: "tool-only",
   tools
@@ -62,7 +62,7 @@ UI surfaces. The demo app does this with `DemoSessionProvider`.
 
 ```tsx
 const runtime = useVoiceControl({
-  auth: { tokenEndpoint: "/token" },
+  auth: { sessionEndpoint: "/session" },
   instructions: "Use the provided tools.",
   outputMode: "tool-only",
   tools

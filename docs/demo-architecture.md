@@ -20,6 +20,10 @@ through `DemoSessionProvider`.
 `DemoSessionProvider` creates one controller up front and keeps it alive across
 route changes.
 
+The demo uses the unified `/session` flow, so the browser sends SDP plus the
+current session config to the local demo server and that server forwards the
+multipart request to OpenAI with the standard API key.
+
 When the active interactive demo changes, the provider:
 
 1. disconnects the old session

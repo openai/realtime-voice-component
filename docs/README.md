@@ -16,7 +16,7 @@ The package is split into five practical layers:
 
 - tool definition with `defineVoiceTool()`
 - controller and hook runtime with `createVoiceControlController()` and `useVoiceControl()`
-- browser transport over Realtime WebRTC
+- browser transport over Realtime WebRTC with a server-proxied `/session` bootstrap by default
 - launcher UI with `VoiceControlWidget`
 - optional visual confirmation with `useGhostCursor()` and `GhostCursorOverlay`
 

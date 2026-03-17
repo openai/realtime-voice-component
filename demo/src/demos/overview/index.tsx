@@ -20,9 +20,9 @@ export function OverviewDemoPage() {
           body="A lightweight voice runtime for React apps built around app-owned tools."
           emphasis={
             <>
-              Start by defining tools with <code>defineVoiceTool()</code>,
-              create a reusable controller, and pass{" "}
-              <code>controller=&#123;controller&#125;</code> to the widget.
+              Define your tools with <code>defineVoiceTool()</code>, create a
+              reusable controller, then render the widget with{" "}
+              <code>controller=&#123;controller&#125;</code>.
             </>
           }
         />
@@ -38,7 +38,7 @@ export function OverviewDemoPage() {
 
         <DemoSection
           heading="App Code"
-          description="Create the tool, build a reusable controller, and pass it into the widget."
+          description="Define the tool, create a reusable controller, and render the widget with it."
         >
           <DemoCodeBlock language="tsx">{`import {
   VoiceControlWidget,
@@ -61,7 +61,7 @@ const setTheme = defineVoiceTool({
 });
 
 const controller = createVoiceControlController({
-  auth: { tokenEndpoint: "/token" },
+  auth: { sessionEndpoint: "/session" },
   instructions: "Use only the provided tools.",
   outputMode: "tool-only",
   tools: [setTheme]
@@ -74,28 +74,25 @@ export function Example() {
 
         <DemoSection
           heading="Server Code"
-          description="Exchange your API key for a client secret."
+          description="Proxy the browser SDP offer and session config to OpenAI."
         >
-          <DemoCodeBlock language="javascript">{`app.get("/token", async (_request, response) => {
-  const realtimeResponse = await fetch(
-    "https://api.openai.com/v1/realtime/client_secrets",
-    {
-      method: "POST",
-      headers: {
-        Authorization: \`Bearer \${process.env.OPENAI_API_KEY}\`,
-        "Content-Type": "application/json"
-      }
-    }
-  );
+          <DemoCodeBlock language="javascript">{`app.post("/session", async (request, response) => {
+  const contentType = request.header("content-type");
 
-  const payload = await realtimeResponse.json();
-  const value =
-    payload.value ??
-    (typeof payload.client_secret === "object" && payload.client_secret !== null
-      ? payload.client_secret.value
-      : payload.client_secret);
+  const realtimeResponse = await fetch("https://api.openai.com/v1/realtime/calls", {
+    method: "POST",
+    headers: {
+      Authorization: \`Bearer \${process.env.OPENAI_API_KEY}\`,
+      ...(contentType ? { "Content-Type": contentType } : {})
+    },
+    body: request,
+    duplex: "half"
+  });
 
-  response.json({ ...payload, value });
+  response
+    .status(realtimeResponse.status)
+    .type(realtimeResponse.headers.get("content-type") ?? "application/sdp")
+    .send(await realtimeResponse.text());
 });`}</DemoCodeBlock>
         </DemoSection>
 

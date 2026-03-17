@@ -51,7 +51,7 @@ Widget-specific props:
 ```tsx
 const controllerRef = { current: null };
 const controller = createVoiceControlController({
-  auth: { tokenEndpoint: "/token" },
+  auth: { sessionEndpoint: "/session" },
   tools
 });
 

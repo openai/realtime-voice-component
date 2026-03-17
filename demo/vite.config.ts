@@ -4,8 +4,10 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-const tokenServerOrigin =
-  process.env.DEMO_TOKEN_ORIGIN ?? "http://localhost:3211";
+const sessionServerOrigin =
+  process.env.DEMO_SESSION_ORIGIN ??
+  process.env.DEMO_TOKEN_ORIGIN ??
+  "http://localhost:3211";
 const demoRoot = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig({
@@ -31,7 +33,7 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      "/token": tokenServerOrigin,
+      "/session": sessionServerOrigin,
     },
   },
   build: {

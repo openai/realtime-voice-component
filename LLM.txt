@@ -9,7 +9,7 @@ Read this first:
 - Your app must define narrow tools and perform the real state changes.
 - Treat this repo as demo/reference code, not a production framework.
 - Install from a local checkout of this repository. Do not assume the package is on npm.
-- Do not mint Realtime client secrets in the browser.
+- Do not use a standard OpenAI API key in the browser.
 
 Use this default integration unless the host app has a strong reason not to:
 
@@ -31,58 +31,39 @@ If you use the packaged widget or ghost cursor visuals, import the stylesheet in
 import "realtime-voice-component/styles.css";
 ```
 
-Step 2: add a backend token route
+Step 2: add a backend session route
 
-The library calls `GET /token?model=...` when you pass `auth: { tokenEndpoint: "/token" }`.
+The library calls `POST /session` with a multipart body when you pass
+`auth: { sessionEndpoint: "/session" }`.
 
-Your backend route must mint a short-lived Realtime client secret by calling `POST https://api.openai.com/v1/realtime/client_secrets` with the server-side OpenAI API key.
+The browser sends two fields:
 
-Return one of these response shapes:
+- `sdp`: the local WebRTC offer
+- `session`: the serialized Realtime session config built by the library
 
-- `{ "value": "rtm_..." }`
-- `{ "client_secret": "rtm_..." }`
-- `{ "client_secret": { "value": "rtm_..." } }`
-
-Prefer returning a flattened `value`.
+Your backend route should forward that multipart body to
+`POST https://api.openai.com/v1/realtime/calls` with the server-side OpenAI API
+key and return the answer SDP body unchanged.
 
 Use this Express-style example and adapt the route syntax to the host framework:
 
 ```ts
-app.get("/token", async (request, response) => {
-  const realtimeResponse = await fetch(
-    "https://api.openai.com/v1/realtime/client_secrets",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        session: {
-          type: "realtime",
-          model:
-            typeof request.query.model === "string"
-              ? request.query.model
-              : "gpt-realtime-1.5",
-          output_modalities: ["text"]
-        }
-      })
-    }
-  );
+app.post("/session", async (request, response) => {
+  const contentType = request.header("content-type");
+  const realtimeResponse = await fetch("https://api.openai.com/v1/realtime/calls", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      ...(contentType ? { "Content-Type": contentType } : {})
+    },
+    body: request,
+    duplex: "half"
+  });
 
-  if (!realtimeResponse.ok) {
-    response.status(realtimeResponse.status).send(await realtimeResponse.text());
-    return;
-  }
-
-  const payload = await realtimeResponse.json();
-  const value =
-    payload.value ??
-    (typeof payload.client_secret === "object" && payload.client_secret !== null
-      ? payload.client_secret.value
-      : payload.client_secret);
-
-  response.json({ ...payload, value });
+  response
+    .status(realtimeResponse.status)
+    .type(realtimeResponse.headers.get("content-type") ?? "application/sdp")
+    .send(await realtimeResponse.text());
 });
 ```
 
@@ -142,7 +123,7 @@ export function ThemeSettingsPage() {
     });
 
     return createVoiceControlController({
-      auth: { tokenEndpoint: "/token" },
+      auth: { sessionEndpoint: "/session" },
       instructions:
         "You are a voice control agent for a React web app. Use only the registered tools to act on the UI. Prefer tool calls over chat when a tool can satisfy the request. Ask one short clarification question when required tool arguments are missing or ambiguous. Do not invent capabilities or successful outcomes.",
       outputMode: "tool-only",
@@ -207,7 +188,7 @@ Step 5: verify the first integration
 
 The first pass is done when:
 
-- the host app can fetch a short-lived Realtime client secret from its backend
+- the host app can proxy the `/session` request through its backend
 - one tool can be called successfully from the voice session
 - that tool performs a real visible UI update
 - the app sends updated state back into the session after the change
@@ -227,9 +208,10 @@ Bad tools:
 - a generic "control the whole app" tool
 - any tool that claims success without verifying the real app action happened
 
-Optional: use `getClientSecret` instead of `tokenEndpoint`
+Optional: use the legacy client-secret flow instead of `sessionEndpoint`
 
-Use this only if the host app needs custom credentials, headers, retries, or auth flow:
+Use this only if the host app explicitly wants the browser to send SDP directly
+to OpenAI with a short-lived Realtime client secret:
 
 ```ts
 const controller = createVoiceControlController({

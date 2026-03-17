@@ -55,9 +55,10 @@ function shutdown(signal) {
 
 const pnpmCommand = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 
-spawnProcess(process.execPath, ["demo/token-server.mjs"]);
+spawnProcess(process.execPath, ["demo/session-server.mjs"]);
 spawnProcess(pnpmCommand, ["exec", "vite", "--config", "demo/vite.config.ts"], {
-  DEMO_TOKEN_ORIGIN: process.env.DEMO_TOKEN_ORIGIN ?? "http://localhost:3211"
+  DEMO_SESSION_ORIGIN:
+    process.env.DEMO_SESSION_ORIGIN ?? process.env.DEMO_TOKEN_ORIGIN ?? "http://localhost:3211"
 });
 
 process.on("SIGINT", () => shutdown("SIGINT"));

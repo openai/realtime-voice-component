@@ -46,8 +46,15 @@ It also exposes methods for:
 
 ## Connection Model
 
-The runtime resolves a client secret first, then opens a browser WebRTC session
-to `POST https://api.openai.com/v1/realtime/calls`.
+The runtime now defaults to a unified server-proxied WebRTC handshake:
+
+- the browser creates the local SDP offer
+- the runtime posts that SDP and the serialized session config to your app server
+- your server forwards the multipart request to `POST https://api.openai.com/v1/realtime/calls`
+- the browser receives the answer SDP and finishes the peer connection
+
+Legacy client-secret bootstrap paths are still supported, but they are no
+longer the primary flow in this repo.
 
 Important controller behavior:
 

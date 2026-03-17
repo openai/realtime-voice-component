@@ -116,8 +116,10 @@ function getPeerConnection(peerConnections: MockPeerConnection[]) {
 
 function connect(transport: WebRtcRealtimeTransport, onError: any, signal?: AbortSignal) {
   return transport.connect({
-    authToken: "client-secret",
-    model: "gpt-realtime-1.5",
+    auth: {
+      type: "auth_token",
+      authToken: "client-secret"
+    },
     session: {
       model: "gpt-realtime-1.5",
       instructions: "test",
@@ -241,6 +243,132 @@ describe("WebRtcRealtimeTransport", () => {
     expect(track.stop).toHaveBeenCalledTimes(1);
     expect(peerConnection.dataChannel.close).toHaveBeenCalledTimes(1);
     expect(peerConnection.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("posts SDP and serialized session payload to a session endpoint", async () => {
+    const { fetchMock, onError, peerConnections, transport } = setupTransportTest();
+
+    const connectPromise = transport.connect({
+      auth: {
+        type: "session_endpoint",
+        sessionEndpoint: "/session",
+        sessionRequestInit: {
+          credentials: "include",
+          headers: {
+            "X-Demo": "1",
+            "Content-Type": "text/plain"
+          }
+        }
+      },
+      session: {
+        model: "gpt-realtime-1.5",
+        instructions: "test",
+        tools: [],
+        activationMode: "push-to-talk",
+        outputMode: "tool-only"
+      },
+      audioPlaybackEnabled: false,
+      onServerEvent: vi.fn(),
+      onError: onError as (error: Error) => void
+    });
+
+    const peerConnection = getPeerConnection(peerConnections);
+    peerConnection.dataChannel.open();
+    await connectPromise;
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/session",
+      expect.objectContaining({
+        method: "POST",
+        credentials: "include"
+      })
+    );
+
+    const [, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(requestInit.headers).toBeInstanceOf(Headers);
+    expect(new Headers(requestInit.headers).get("X-Demo")).toBe("1");
+    expect(new Headers(requestInit.headers).get("Content-Type")).toBeNull();
+    expect(requestInit.body).toBeInstanceOf(FormData);
+
+    const body = requestInit.body as FormData;
+    expect(body.get("sdp")).toBe("offer-sdp");
+    expect(body.get("session")).toBe(
+      JSON.stringify({
+        type: "realtime",
+        model: "gpt-realtime-1.5",
+        instructions: "test",
+        tool_choice: "auto",
+        tools: [],
+        output_modalities: ["text"],
+        audio: {
+          input: {
+            turn_detection: null
+          }
+        }
+      })
+    );
+  });
+
+  it("surfaces session endpoint failures", async () => {
+    const { fetchMock, onError, peerConnections, track, transport } = setupTransportTest();
+    fetchMock.mockResolvedValueOnce(createFetchResponse("session failed", false));
+
+    const connectPromise = transport.connect({
+      auth: {
+        type: "session_endpoint",
+        sessionEndpoint: "/session"
+      },
+      session: {
+        model: "gpt-realtime-1.5",
+        instructions: "test",
+        tools: [],
+        activationMode: "push-to-talk",
+        outputMode: "tool-only"
+      },
+      audioPlaybackEnabled: false,
+      onServerEvent: vi.fn(),
+      onError: onError as (error: Error) => void
+    });
+
+    getPeerConnection(peerConnections);
+
+    await expect(connectPromise).rejects.toThrow(
+      "Failed to establish Realtime WebRTC session: session failed"
+    );
+    expect(track.stop).toHaveBeenCalledTimes(1);
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("rejects empty SDP answers from the session endpoint", async () => {
+    const { fetchMock, onError, peerConnections, track, transport } = setupTransportTest();
+    fetchMock.mockResolvedValueOnce(createFetchResponse("   "));
+
+    const connectPromise = transport.connect({
+      auth: {
+        type: "session_endpoint",
+        sessionEndpoint: "/session"
+      },
+      session: {
+        model: "gpt-realtime-1.5",
+        instructions: "test",
+        tools: [],
+        activationMode: "push-to-talk",
+        outputMode: "tool-only"
+      },
+      audioPlaybackEnabled: false,
+      onServerEvent: vi.fn(),
+      onError: onError as (error: Error) => void
+    });
+
+    const peerConnection = getPeerConnection(peerConnections);
+    peerConnection.dataChannel.open();
+
+    await expect(connectPromise).rejects.toThrow(
+      "Failed to establish Realtime WebRTC session: empty SDP answer."
+    );
+    expect(track.stop).toHaveBeenCalledTimes(1);
+    expect(peerConnection.close).toHaveBeenCalledTimes(1);
+    expect(onError).not.toHaveBeenCalled();
   });
 
   it("aborts an in-flight connect when the caller cancels it", async () => {

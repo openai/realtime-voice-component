@@ -283,6 +283,7 @@ export type VoiceControlResolvedSessionConfig = {
 
 export type UseVoiceControlOptions = {
   auth:
+    | { sessionEndpoint: string; sessionRequestInit?: RequestInit }
     | { getClientSecret: () => Promise<string> }
     | { tokenEndpoint: string; tokenRequestInit?: RequestInit };
   tools: VoiceTool<any>[];

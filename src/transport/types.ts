@@ -30,9 +30,19 @@ export type TransportSessionConfig = {
   raw?: Record<string, unknown>;
 };
 
+export type TransportAuth =
+  | {
+      type: "auth_token";
+      authToken: string;
+    }
+  | {
+      type: "session_endpoint";
+      sessionEndpoint: string;
+      sessionRequestInit?: RequestInit;
+    };
+
 export type TransportConnectOptions = {
-  authToken: string;
-  model: RealtimeModel;
+  auth: TransportAuth;
   session: TransportSessionConfig;
   audioPlaybackEnabled: boolean;
   signal?: AbortSignal;
