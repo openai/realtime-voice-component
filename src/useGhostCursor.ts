@@ -380,14 +380,6 @@ export function useGhostCursor({
     [clearActiveTargets, clearHideTimer]
   );
 
-  useEffect(() => {
-    if (cursorState.main.phase === "hidden") {
-      return;
-    }
-
-    scriptedPointerRef.current = cursorState.main.position;
-  }, [cursorState.main.phase, cursorState.main.position]);
-
   const runSingle = useCallback(
     async <TResult>(
       target: GhostCursorTarget,

@@ -3,7 +3,7 @@ export const SIMPLE_FORM_FIELD_KEYS = [
   "birthday",
   "newsletter_opt_in",
   "accept_terms",
-  "notes"
+  "notes",
 ] as const;
 
 export type SimpleFormFieldKey = (typeof SIMPLE_FORM_FIELD_KEYS)[number];
@@ -26,12 +26,20 @@ export type SimpleFormValidationResult = {
   invalidFields: SimpleFormFieldKey[];
 };
 
+export type SimpleFormCompletionSnapshot = {
+  blockingFields: SimpleFormFieldStatus[];
+  completedRequiredCount: number;
+  missingRequired: SimpleFormFieldStatus[];
+  readyToSubmit: boolean;
+  requiredTotalCount: number;
+};
+
 export const DEFAULT_SIMPLE_FORM_VALUES: SimpleFormValues = {
   name: "",
   birthday: "",
   newsletterOptIn: false,
   acceptTerms: false,
-  notes: ""
+  notes: "",
 };
 
 const FIELD_LABELS: Record<SimpleFormFieldKey, string> = {
@@ -39,7 +47,7 @@ const FIELD_LABELS: Record<SimpleFormFieldKey, string> = {
   birthday: "Birthday",
   name: "Name",
   newsletter_opt_in: "Newsletter opt-in",
-  notes: "Notes"
+  notes: "Notes",
 };
 
 const FIELD_REQUIREMENTS = [
@@ -47,15 +55,18 @@ const FIELD_REQUIREMENTS = [
   { key: "birthday", required: true },
   { key: "newsletter_opt_in", required: false },
   { key: "accept_terms", required: true },
-  { key: "notes", required: false }
-] as const satisfies ReadonlyArray<{ key: SimpleFormFieldKey; required: boolean }>;
+  { key: "notes", required: false },
+] as const satisfies ReadonlyArray<{
+  key: SimpleFormFieldKey;
+  required: boolean;
+}>;
 
 export const FORM_DEMO_INSTRUCTIONS = [
   "You are a concise voice assistant controlling a simple form demo in a React app.",
   "You control the visible UI with tools. This is not a general chat.",
   "You have exactly five tools: set_field, get_unfilled_fields, submit_form, change_demo, and send_message.",
   "If a tool can satisfy the request, call the tool instead of replying in text.",
-  "Use set_field with exactly one field per call in the shape { \"key\": \"<field_key>\", \"value\": \"<string>\" }.",
+  'Use set_field with exactly one field per call in the shape { "key": "<field_key>", "value": "<string>" }.',
   "After each tool call, rely on the follow-up response to continue filling the next field when needed.",
   "Supported field keys are name, birthday, newsletter_opt_in, accept_terms, and notes.",
   "Use YYYY-MM-DD for birthday.",
@@ -67,7 +78,7 @@ export const FORM_DEMO_INSTRUCTIONS = [
   "Use submit_form only when the user explicitly asks to submit, save, or send the form.",
   "If the user asks for both edits and submission, finish the field updates first and submit last.",
   "Do not invent extra fields, nested objects, or unsupported tools.",
-  "Keep any text reply short and action-focused."
+  "Keep any text reply short and action-focused.",
 ].join(" ");
 
 function isBlank(value: string) {
@@ -136,11 +147,13 @@ export function buildUnfilledFieldsSnapshot(values: SimpleFormValues) {
     optional,
     suggested: (required.length > 0 ? required : optional).slice(0, 3),
     requiredCount: required.length,
-    optionalCount: optional.length
+    optionalCount: optional.length,
   };
 }
 
-export function validateSimpleForm(values: SimpleFormValues): SimpleFormValidationResult {
+export function validateSimpleForm(
+  values: SimpleFormValues,
+): SimpleFormValidationResult {
   const errors: Partial<Record<SimpleFormFieldKey, string>> = {};
 
   if (isBlank(values.name)) {
@@ -161,14 +174,37 @@ export function validateSimpleForm(values: SimpleFormValues): SimpleFormValidati
 
   return {
     errors,
-    invalidFields: Object.keys(errors) as SimpleFormFieldKey[]
+    invalidFields: Object.keys(errors) as SimpleFormFieldKey[],
+  };
+}
+
+export function buildSimpleFormCompletionSnapshot(
+  values: SimpleFormValues,
+): SimpleFormCompletionSnapshot {
+  const unfilled = buildUnfilledFieldsSnapshot(values);
+  const validation = validateSimpleForm(values);
+  const requiredTotalCount = FIELD_REQUIREMENTS.filter(
+    (field) => field.required,
+  ).length;
+
+  return {
+    blockingFields: validation.invalidFields.map((field) => ({
+      key: field,
+      label: FIELD_LABELS[field],
+    })),
+    completedRequiredCount: requiredTotalCount - unfilled.required.length,
+    missingRequired: unfilled.required,
+    readyToSubmit: validation.invalidFields.length === 0,
+    requiredTotalCount,
   };
 }
 
 export function buildSimpleFormStateMessage(values: SimpleFormValues) {
   const unfilled = buildUnfilledFieldsSnapshot(values);
-  const required = unfilled.required.map((field) => field.key).join(", ") || "none";
-  const optional = unfilled.optional.map((field) => field.key).join(", ") || "none";
+  const required =
+    unfilled.required.map((field) => field.key).join(", ") || "none";
+  const optional =
+    unfilled.optional.map((field) => field.key).join(", ") || "none";
 
   return [
     "Form state update: the visible simple form has these current values.",
@@ -178,6 +214,6 @@ export function buildSimpleFormStateMessage(values: SimpleFormValues) {
     `accept_terms=${values.acceptTerms ? "yes" : "no"}.`,
     `notes=${values.notes.trim() || "<empty>"}.`,
     `Required fields still missing or invalid: ${required}.`,
-    `Optional fields still blank or unset: ${optional}.`
+    `Optional fields still blank or unset: ${optional}.`,
   ].join(" ");
 }

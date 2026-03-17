@@ -9,6 +9,22 @@ function sendJson(response, statusCode, payload) {
   response.end(JSON.stringify(payload));
 }
 
+function readBody(request) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+
+    request.on("data", (chunk) => {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    });
+    request.on("end", () => {
+      resolve(Buffer.concat(chunks));
+    });
+    request.on("error", (error) => {
+      reject(error);
+    });
+  });
+}
+
 const server = createServer(async (request, response) => {
   const requestUrl = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
 

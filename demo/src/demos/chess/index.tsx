@@ -275,7 +275,9 @@ export function ChessDemoPage() {
                     className="text-sm font-medium text-muted-foreground"
                     data-testid="chess-turn"
                   >
-                    {chess.state.turn === "w" ? "White to move" : "Black to move"}
+                    {chess.state.turn === "w"
+                      ? "White to move"
+                      : "Black to move"}
                   </div>
                 </div>
               </CardHeader>

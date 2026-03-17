@@ -973,12 +973,22 @@ describe("Package demo app", () => {
     });
 
     await waitFor(() => {
+      expect(screen.getByTestId("form-progress-summary")).toHaveTextContent(
+        "0 of 3 required fields complete",
+      );
+      expect(screen.getByTestId("form-progress-detail")).toHaveTextContent(
+        "Still needed: Name, Birthday, Accept terms.",
+      );
       expect(screen.getByText("Name is required.")).toBeInTheDocument();
       expect(screen.getByText("Birthday is required.")).toBeInTheDocument();
       expect(
         screen.getByText("You need to accept the terms before submitting."),
       ).toBeInTheDocument();
     });
+
+    expect(screen.queryByTestId("form-submit-success")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Submit" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Name")).toBeInTheDocument();
   });
 
   it("submits the simple form after the required fields are filled", async () => {
@@ -1008,6 +1018,68 @@ describe("Package demo app", () => {
 
     expect(mockState.toast).toHaveBeenCalledWith("Submitted demo form", {
       description: "Ada Lovelace · 1815-12-10",
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("form-progress-summary")).toHaveTextContent(
+        "3 of 3 required fields complete",
+      );
+      expect(screen.getByTestId("form-progress-summary")).toHaveTextContent(
+        "Ready to submit",
+      );
+      expect(screen.getByTestId("form-submit-success")).toHaveTextContent(
+        "Demo form submitted for Ada Lovelace.",
+      );
+    });
+
+    await setFieldTool!.execute({
+      key: "notes",
+      value: "Prefers a short onboarding call.",
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("form-submit-success"),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("keeps the form progress blocked when optional fields are invalid", async () => {
+    renderDemoApp("/demo/form");
+
+    const setFieldTool = mockState.latestController?.__tools.find(
+      (tool) => tool.name === "set_field",
+    );
+    const submitForm = mockState.latestController?.__tools.find(
+      (tool) => tool.name === "submit_form",
+    );
+
+    await setFieldTool!.execute({ key: "name", value: "Ada Lovelace" });
+    await setFieldTool!.execute({ key: "birthday", value: "1815-12-10" });
+    await setFieldTool!.execute({ key: "accept_terms", value: "yes" });
+    fireEvent.change(screen.getByLabelText("Notes"), {
+      target: { value: "A".repeat(281) },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("form-progress-summary")).toHaveTextContent(
+        "3 of 3 required fields complete",
+      );
+      expect(screen.getByTestId("form-progress-summary")).toHaveTextContent(
+        "Still in progress",
+      );
+      expect(screen.getByTestId("form-progress-detail")).toHaveTextContent(
+        "Fix before submitting: Notes.",
+      );
+    });
+
+    await expect(submitForm!.execute({})).resolves.toEqual({
+      ok: false,
+      invalidFields: ["notes"],
+    });
+    await waitFor(() => {
+      expect(
+        screen.getByText("Notes must be at most 280 characters."),
+      ).toBeInTheDocument();
     });
   });
 });

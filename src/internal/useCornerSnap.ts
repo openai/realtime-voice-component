@@ -227,6 +227,11 @@ export function useCornerSnap({
     return positionRef.current;
   }, [rootNode]);
 
+  const setCornerState = useCallback((nextCorner: CornerSnapCorner) => {
+    cornerRef.current = nextCorner;
+    setCorner(nextCorner);
+  }, []);
+
   const setPositionState = useCallback((nextPosition: CornerSnapPoint) => {
     positionRef.current = nextPosition;
     setPosition(nextPosition);
@@ -246,11 +251,10 @@ export function useCornerSnap({
   const snapToCorner = useCallback(
     (nextCorner: CornerSnapCorner) => {
       const corners = getCornerPositions(getViewportSize(), getWidgetSize(), inset);
-      cornerRef.current = nextCorner;
-      setCorner(nextCorner);
+      setCornerState(nextCorner);
       setClampedPositionState(corners[nextCorner]);
     },
-    [getWidgetSize, inset, setClampedPositionState]
+    [getWidgetSize, inset, setClampedPositionState, setCornerState]
   );
 
   const cancelAnimation = useCallback(() => {
@@ -296,8 +300,7 @@ export function useCornerSnap({
     (from: CornerSnapPoint, velocity: CornerSnapPoint, nextCorner: CornerSnapCorner) => {
       const corners = getCornerPositions(getViewportSize(), getWidgetSize(), inset);
 
-      cornerRef.current = nextCorner;
-      setCorner(nextCorner);
+      setCornerState(nextCorner);
       if (persistPosition) {
         writeStoredCorner(widgetId, nextCorner);
       }
@@ -305,7 +308,7 @@ export function useCornerSnap({
       animationRef.current = createCornerSnapAnimation(from, velocity, corners[nextCorner]);
       setAnimating(true);
     },
-    [getWidgetSize, inset, persistPosition, widgetId]
+    [getWidgetSize, inset, persistPosition, setCornerState, widgetId]
   );
 
   const animateToNearestCorner = useCallback(
@@ -341,14 +344,6 @@ export function useCornerSnap({
   }, [cancelAnimation, enabled, getWidgetSize, rootNode, snapToCorner]);
 
   useEffect(() => {
-    cornerRef.current = corner;
-  }, [corner]);
-
-  useEffect(() => {
-    positionRef.current = position;
-  }, [position]);
-
-  useEffect(() => {
     if (!enabled) {
       cancelAnimation();
       setDragging(false);
@@ -363,10 +358,9 @@ export function useCornerSnap({
     }
 
     const storedCorner = readStoredCorner(widgetId, defaultCorner);
-    cornerRef.current = storedCorner;
-    setCorner(storedCorner);
+    setCornerState(storedCorner);
     snapToCorner(storedCorner);
-  }, [cancelAnimation, defaultCorner, enabled, persistPosition, snapToCorner, widgetId]);
+  }, [cancelAnimation, defaultCorner, enabled, persistPosition, setCornerState, snapToCorner, widgetId]);
 
   useEffect(() => {
     if (!enabled) {
@@ -380,13 +374,12 @@ export function useCornerSnap({
     lastWidgetIdRef.current = widgetId;
 
     const storedCorner = persistPosition ? readStoredCorner(widgetId, defaultCorner) : defaultCorner;
-    cornerRef.current = storedCorner;
-    setCorner(storedCorner);
+    setCornerState(storedCorner);
     cancelAnimation();
     setDragging(false);
     dragSessionRef.current = null;
     snapToCorner(storedCorner);
-  }, [cancelAnimation, defaultCorner, enabled, persistPosition, snapToCorner, widgetId]);
+  }, [cancelAnimation, defaultCorner, enabled, persistPosition, setCornerState, snapToCorner, widgetId]);
 
   useIsomorphicLayoutEffect(() => {
     if (!enabled) {

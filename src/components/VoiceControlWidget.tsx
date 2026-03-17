@@ -1,8 +1,10 @@
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent
 } from "react";
@@ -67,23 +69,20 @@ type LauncherVisualState = "busy" | "connecting" | "error" | "idle" | "listening
 const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 function useViewportMatch(maxWidth: number) {
-  const [matches, setMatches] = useState(false);
-
-  useEffect(() => {
+  const query = `(max-width: ${maxWidth}px)`;
+  const subscribe = useCallback((onStoreChange: () => void) => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
-      return;
+      return () => {};
     }
 
-    const mediaQuery = window.matchMedia(`(max-width: ${maxWidth}px)`);
+    const mediaQuery = window.matchMedia(query);
     const legacyMediaQuery = mediaQuery as MediaQueryList & {
-      addListener?: (listener: (event: MediaQueryListEvent) => void) => void;
-      removeListener?: (listener: (event: MediaQueryListEvent) => void) => void;
+      addListener?: (listener: () => void) => void;
+      removeListener?: (listener: () => void) => void;
     };
-    const handleChange = (event: MediaQueryListEvent) => {
-      setMatches(event.matches);
+    const handleChange = () => {
+      onStoreChange();
     };
-
-    setMatches(mediaQuery.matches);
 
     if ("addEventListener" in mediaQuery) {
       mediaQuery.addEventListener("change", handleChange);
@@ -96,9 +95,17 @@ function useViewportMatch(maxWidth: number) {
     return () => {
       legacyMediaQuery.removeListener?.(handleChange);
     };
-  }, [maxWidth]);
+  }, [query]);
 
-  return matches;
+  const getSnapshot = useCallback(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return false;
+    }
+
+    return window.matchMedia(query).matches;
+  }, [query]);
+
+  return useSyncExternalStore(subscribe, getSnapshot, () => false);
 }
 
 function positionStorageKey(widgetId: string) {
@@ -423,6 +430,10 @@ export function VoiceControlWidget({
   const [dragging, setDragging] = useState(false);
   const [launcherToastMessage, setLauncherToastMessage] = useState<string | null>(null);
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
+  const setWidgetPosition = useCallback((nextPosition: { x: number; y: number }) => {
+    dragPositionRef.current = nextPosition;
+    setPosition(nextPosition);
+  }, []);
   const isMobileViewport = useViewportMatch(mobileBreakpoint);
   const resolvedMobileLayout = mobileLayout ?? layout;
   const resolvedLayout = isMobileViewport ? resolvedMobileLayout : layout;
@@ -470,14 +481,6 @@ export function VoiceControlWidget({
       controllerRef.current = null;
     };
   }, [controllerRef]);
-
-  useEffect(() => {
-    if (snapToCornersEnabled) {
-      return;
-    }
-
-    dragPositionRef.current = position;
-  }, [position, snapToCornersEnabled]);
 
   useEffect(() => {
     if (!hasLauncherError) {
@@ -534,14 +537,12 @@ export function VoiceControlWidget({
 
     if (!persistPosition) {
       clearStoredPosition(widgetId);
-      setPosition({ x: 0, y: 0 });
+      setWidgetPosition({ x: 0, y: 0 });
       return;
     }
 
-    const storedPosition = readStoredPosition(widgetId);
-    dragPositionRef.current = storedPosition;
-    setPosition(storedPosition);
-  }, [persistPosition, resolvedLayout, snapToCornersEnabled, widgetId]);
+    setWidgetPosition(readStoredPosition(widgetId));
+  }, [persistPosition, resolvedLayout, setWidgetPosition, snapToCornersEnabled, widgetId]);
 
   useEffect(() => {
     if (snapToCornersEnabled) {
@@ -602,8 +603,7 @@ export function VoiceControlWidget({
       y: event.clientY - dragOffsetRef.current.y
     };
 
-    dragPositionRef.current = nextPosition;
-    setPosition(nextPosition);
+    setWidgetPosition(nextPosition);
   };
 
   const endDrag = (event: ReactPointerEvent<HTMLElement>) => {
