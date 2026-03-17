@@ -7,7 +7,13 @@ const KEYWORD_PUBLIC_PATH = "/porcupine/hey-chappie_en_wasm_v4_0_0.ppn";
 const MODEL_PUBLIC_PATH = "/porcupine/porcupine_params.pv";
 const DETECTION_COOLDOWN_MS = 3000;
 
-type WakeWordStatus = "checking" | "error" | "loading" | "off" | "ready" | "unavailable";
+export type WakeWordStatus =
+  | "checking"
+  | "error"
+  | "loading"
+  | "off"
+  | "ready"
+  | "unavailable";
 
 type UseWakeWordActivationOptions = {
   enabled: boolean;
@@ -15,7 +21,8 @@ type UseWakeWordActivationOptions = {
   onWakeWord: (label: string) => boolean;
 };
 
-type WakeWordState = {
+export type WakeWordState = {
+  assetsAvailable: boolean;
   status: WakeWordStatus;
   detail: string;
   hasAccessKey: boolean;
@@ -23,6 +30,12 @@ type WakeWordState = {
   keywordPath: string;
   modelPath: string;
 };
+
+type WakeWordSetupState =
+  | { phase: "idle" }
+  | { phase: "checking" }
+  | { phase: "missing-assets"; detail: string }
+  | { phase: "ready" };
 
 function formatMissingAssets(paths: string[]) {
   return paths.map((path) => path.split("/").at(-1) ?? path).join(", ");
@@ -34,7 +47,7 @@ async function assetExists(publicPath: string) {
   try {
     const response = await fetch(assetUrl, {
       cache: "no-store",
-      method: "HEAD"
+      method: "HEAD",
     });
 
     if (response.ok) {
@@ -50,7 +63,7 @@ async function assetExists(publicPath: string) {
 
   try {
     const response = await fetch(assetUrl, {
-      cache: "no-store"
+      cache: "no-store",
     });
     return response.ok;
   } catch {
@@ -61,39 +74,33 @@ async function assetExists(publicPath: string) {
 export function useWakeWordActivation({
   enabled,
   canActivateWidget,
-  onWakeWord
+  onWakeWord,
 }: UseWakeWordActivationOptions): WakeWordState {
   const accessKey = import.meta.env.VITE_PICOVOICE_ACCESS_KEY?.trim() ?? "";
   const hasAccessKey = accessKey.length > 0;
   const lastDetectionAtRef = useRef(0);
   const lastObservedDetectionRef = useRef<{ label: string } | null>(null);
-  const [status, setStatus] = useState<WakeWordStatus>(hasAccessKey ? "off" : "unavailable");
-  const [detail, setDetail] = useState(
-    hasAccessKey
-      ? "Wake word is off."
-      : "Add VITE_PICOVOICE_ACCESS_KEY to demo/.env.local to enable the wake word."
+  const [setupState, setSetupState] = useState<WakeWordSetupState>(() =>
+    enabled ? { phase: "checking" } : { phase: "idle" },
   );
   const [assetsReady, setAssetsReady] = useState(false);
-  const { error, init, isLoaded, isListening, keywordDetection, release, start, stop } =
-    usePorcupine();
+  const {
+    error,
+    init,
+    isLoaded,
+    isListening,
+    keywordDetection,
+    release,
+    start,
+    stop,
+  } = usePorcupine();
 
   useEffect(() => {
     let cancelled = false;
 
-    if (!hasAccessKey) {
-      setAssetsReady(false);
-      setStatus("unavailable");
-      setDetail("Add VITE_PICOVOICE_ACCESS_KEY to demo/.env.local to enable the wake word.");
-      void release();
-      return () => {
-        cancelled = true;
-      };
-    }
-
     if (!enabled) {
+      setSetupState({ phase: "idle" });
       setAssetsReady(false);
-      setStatus("off");
-      setDetail("Wake word is off.");
       void release();
       return () => {
         cancelled = true;
@@ -102,26 +109,38 @@ export function useWakeWordActivation({
 
     async function initializeWakeWord() {
       setAssetsReady(false);
-      setStatus("checking");
-      setDetail("Checking wake-word assets...");
+      setSetupState({ phase: "checking" });
 
       const requiredPaths = [KEYWORD_PUBLIC_PATH, MODEL_PUBLIC_PATH];
-      const availability = await Promise.all(requiredPaths.map((path) => assetExists(path)));
+      const availability = await Promise.all(
+        requiredPaths.map((path) => assetExists(path)),
+      );
 
       if (cancelled) {
         return;
       }
 
-      const missingPaths = requiredPaths.filter((_, index) => !availability[index]);
+      const missingPaths = requiredPaths.filter(
+        (_, index) => !availability[index],
+      );
       if (missingPaths.length > 0) {
-        setStatus("error");
-        setDetail(`Missing Porcupine asset(s): ${formatMissingAssets(missingPaths)}.`);
+        setAssetsReady(false);
+        setSetupState({
+          phase: "missing-assets",
+          detail: `Missing Porcupine asset(s): ${formatMissingAssets(missingPaths)}.`,
+        });
+        return;
+      }
+
+      setSetupState({ phase: "ready" });
+
+      if (!hasAccessKey) {
+        setAssetsReady(false);
+        void release();
         return;
       }
 
       setAssetsReady(true);
-      setStatus("loading");
-      setDetail("Loading Hey Chappie wake word...");
 
       await release();
       if (cancelled) {
@@ -132,11 +151,11 @@ export function useWakeWordActivation({
         accessKey,
         {
           label: KEYWORD_LABEL,
-          publicPath: KEYWORD_PUBLIC_PATH
+          publicPath: KEYWORD_PUBLIC_PATH,
         },
         {
-          publicPath: MODEL_PUBLIC_PATH
-        }
+          publicPath: MODEL_PUBLIC_PATH,
+        },
       );
     }
 
@@ -162,30 +181,16 @@ export function useWakeWordActivation({
     if (!isListening) {
       void start();
     }
-  }, [assetsReady, canActivateWidget, enabled, hasAccessKey, isLoaded, isListening, start, stop]);
-
-  useEffect(() => {
-    if (!enabled || !hasAccessKey) {
-      return;
-    }
-
-    if (error) {
-      setStatus("error");
-      setDetail(error.message);
-      return;
-    }
-
-    if (isListening) {
-      setStatus("ready");
-      setDetail('Listening for "Hey Chappie"...');
-      return;
-    }
-
-    if (isLoaded) {
-      setStatus("loading");
-      setDetail("Wake word is ready. Starting the microphone...");
-    }
-  }, [enabled, error, hasAccessKey, isLoaded, isListening]);
+  }, [
+    assetsReady,
+    canActivateWidget,
+    enabled,
+    hasAccessKey,
+    isLoaded,
+    isListening,
+    start,
+    stop,
+  ]);
 
   useEffect(() => {
     if (!keywordDetection) {
@@ -215,14 +220,53 @@ export function useWakeWordActivation({
       // Release the wake-word mic before WebRTC opens its own capture stream.
       void stop();
     }
-  }, [canActivateWidget, enabled, hasAccessKey, isListening, keywordDetection, onWakeWord, stop]);
+  }, [
+    canActivateWidget,
+    enabled,
+    hasAccessKey,
+    isListening,
+    keywordDetection,
+    onWakeWord,
+    stop,
+  ]);
+
+  const assetsAvailable = setupState.phase === "ready";
+  let status: WakeWordStatus;
+  let detail: string;
+
+  if (!enabled) {
+    status = "off";
+    detail = "Wake word is off.";
+  } else if (setupState.phase === "idle" || setupState.phase === "checking") {
+    status = "checking";
+    detail = "Checking wake-word assets...";
+  } else if (setupState.phase === "missing-assets") {
+    status = "unavailable";
+    detail = setupState.detail;
+  } else if (!hasAccessKey) {
+    status = "unavailable";
+    detail = "Add VITE_PICOVOICE_ACCESS_KEY to demo/.env.local to enable the wake word.";
+  } else if (error) {
+    status = "error";
+    detail = error.message;
+  } else if (isListening) {
+    status = "ready";
+    detail = 'Listening for "Hey Chappie"...';
+  } else if (isLoaded) {
+    status = "loading";
+    detail = "Wake word is ready. Starting the microphone...";
+  } else {
+    status = "loading";
+    detail = "Loading Hey Chappie wake word...";
+  }
 
   return {
+    assetsAvailable,
     status,
     detail,
     hasAccessKey,
     keywordLabel: KEYWORD_LABEL,
     keywordPath: KEYWORD_PUBLIC_PATH,
-    modelPath: MODEL_PUBLIC_PATH
+    modelPath: MODEL_PUBLIC_PATH,
   };
 }

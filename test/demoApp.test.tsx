@@ -40,6 +40,15 @@ const mockState = vi.hoisted(() => ({
   ),
   latestController: null as MockController | null,
   toast: vi.fn(),
+  wakeWord: {
+    assetsAvailable: false,
+    status: "unavailable",
+    detail: "Wake word is unavailable in tests.",
+    hasAccessKey: false,
+    keywordLabel: "Hey Chappie",
+    keywordPath: "/porcupine/hey-chappie_en_wasm_v4_0_0.ppn",
+    modelPath: "/porcupine/porcupine_params.pv",
+  },
 }));
 
 vi.mock("sonner", () => ({
@@ -80,14 +89,7 @@ vi.mock("react-chessboard", () => ({
 }));
 
 vi.mock("../demo/src/demos/shared/wakeWord", () => ({
-  useWakeWordActivation: () => ({
-    status: "unavailable",
-    detail: "Wake word is unavailable in tests.",
-    hasAccessKey: false,
-    keywordLabel: "Hey Chappie",
-    keywordPath: "/porcupine/hey-chappie_en_wasm_v4_0_0.ppn",
-    modelPath: "/porcupine/porcupine_params.pv",
-  }),
+  useWakeWordActivation: () => mockState.wakeWord,
 }));
 
 vi.mock("realtime-voice-component", async () => {
@@ -368,6 +370,15 @@ describe("Package demo app", () => {
     mockState.ghostCursorRun.mockClear();
     mockState.ghostCursorRunEach.mockClear();
     mockState.toast.mockClear();
+    Object.assign(mockState.wakeWord, {
+      assetsAvailable: false,
+      status: "unavailable",
+      detail: "Wake word is unavailable in tests.",
+      hasAccessKey: false,
+      keywordLabel: "Hey Chappie",
+      keywordPath: "/porcupine/hey-chappie_en_wasm_v4_0_0.ppn",
+      modelPath: "/porcupine/porcupine_params.pv",
+    });
     window.history.replaceState({}, "", "/");
     vi.restoreAllMocks();
   });
@@ -434,6 +445,55 @@ describe("Package demo app", () => {
     ).toBeInTheDocument();
     expect(screen.getByTestId("demo-card")).toBeInTheDocument();
     expect(getWidgetRoot()).toHaveAttribute("data-vc-connected", "false");
+  });
+
+  it("renders wake-word status messaging across the interactive demos", async () => {
+    Object.assign(mockState.wakeWord, {
+      assetsAvailable: true,
+      status: "ready",
+      detail: 'Listening for "Hey Chappie"...',
+      hasAccessKey: true,
+    });
+
+    renderDemoApp("/demo/theme");
+
+    expect(screen.getByTestId("wake-word-status")).toHaveTextContent(
+      'Say "Hey Chappie" to wake voice.',
+    );
+    expect(screen.getByTestId("wake-word-status-detail")).toHaveTextContent(
+      'Say "Hey Chappie" to wake voice.',
+    );
+
+    fireEvent.click(screen.getByRole("link", { name: "Form Demo" }));
+    expect(
+      await screen.findByRole("heading", {
+        name: /Fill a simple form one field at a time/i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("wake-word-status")).toHaveTextContent(
+      'Say "Hey Chappie" to wake voice.',
+    );
+
+    fireEvent.click(screen.getByRole("link", { name: "Chess Demo" }));
+    expect(
+      await screen.findByRole("heading", {
+        name: /Play the board with voice and visible state/i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("wake-word-status")).toHaveTextContent(
+      'Say "Hey Chappie" to wake voice.',
+    );
+  });
+
+  it("shows a missing-assets status when Porcupine files are not available", async () => {
+    renderDemoApp("/demo/theme");
+
+    expect(
+      await screen.findByRole("heading", { name: /Set a visible app theme/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("wake-word-status")).toHaveTextContent(
+      "Wake word is unavailable in tests.",
+    );
   });
 
   it("resets the session on demo changes and reconnects the next demo when the widget was live", async () => {

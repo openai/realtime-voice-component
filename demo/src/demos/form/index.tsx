@@ -31,6 +31,7 @@ import {
   DemoIntro,
   DemoPageShell,
   DemoSection,
+  DemoWakeWordStatus,
 } from "../shared/primitives";
 import {
   buildSimpleFormStateMessage,
@@ -288,6 +289,7 @@ export function FormDemoPage() {
 
         <DemoSection
           heading="Try Saying"
+          aside={<DemoWakeWordStatus wakeWord={wakeWord} />}
           description={
             <>
               Say <strong>{wakeWord.keywordLabel}</strong> to wake it, ask it to{" "}

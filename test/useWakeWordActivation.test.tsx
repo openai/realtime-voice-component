@@ -130,4 +130,37 @@ describe("useWakeWordActivation", () => {
     });
     expect(onWakeWord).not.toHaveBeenCalled();
   });
+
+  it("does not initialize Porcupine when the required asset files are missing", async () => {
+    const onWakeWord = vi.fn(() => true);
+    porcupineState.isLoaded = false;
+    porcupineState.isListening = false;
+    global.fetch = vi
+      .fn(async () => ({
+        ok: false,
+        status: 404,
+      }))
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+      }) as unknown as typeof fetch;
+
+    render(
+      <Harness
+        canActivateWidget
+        enabled
+        onWakeWord={onWakeWord}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(porcupineState.init).not.toHaveBeenCalled();
+      expect(porcupineState.start).not.toHaveBeenCalled();
+    });
+    expect(onWakeWord).not.toHaveBeenCalled();
+  });
 });

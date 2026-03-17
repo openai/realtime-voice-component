@@ -17,6 +17,7 @@ import {
   DemoIntro,
   DemoPageShell,
   DemoSection,
+  DemoWakeWordStatus,
 } from "../shared/primitives";
 import { useWakeWordActivation } from "../shared/wakeWord";
 import { useChessDemoVoiceController } from "./controller";
@@ -238,6 +239,7 @@ export function ChessDemoPage() {
 
         <DemoSection
           heading="Try Saying"
+          aside={<DemoWakeWordStatus wakeWord={wakeWord} />}
           description={
             <>
               Say <strong>{wakeWord.keywordLabel}</strong> to wake it, ask for{" "}

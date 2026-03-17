@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import type { WakeWordState, WakeWordStatus } from "./wakeWord";
 
 type DemoTheme = "light" | "dark";
 
@@ -52,6 +53,10 @@ type DemoLinkCardProps = {
 type DemoCodeBlockProps = {
   children: string;
   language?: DemoCodeLanguage;
+};
+
+type DemoWakeWordStatusProps = {
+  wakeWord: WakeWordState;
 };
 
 const DEMO_NAV_ITEMS = [
@@ -99,6 +104,42 @@ function DemoEyebrow({
       {children}
     </p>
   );
+}
+
+function getWakeWordSummary(wakeWord: WakeWordState) {
+  if (wakeWord.status === "ready") {
+    return `Say "${wakeWord.keywordLabel}" to wake voice.`;
+  }
+
+  if (wakeWord.status === "checking" || wakeWord.status === "loading") {
+    return "Loading wake word.";
+  }
+
+  if (wakeWord.status === "off") {
+    return "Wake word is off.";
+  }
+
+  if (wakeWord.status === "error") {
+    return `Wake word error: ${wakeWord.detail}`;
+  }
+
+  return wakeWord.detail;
+}
+
+function getWakeWordDotClassName(status: WakeWordStatus) {
+  switch (status) {
+    case "ready":
+      return "bg-emerald-500";
+    case "checking":
+    case "loading":
+      return "bg-amber-500";
+    case "off":
+      return "bg-muted-foreground/55";
+    case "error":
+      return "bg-destructive";
+    case "unavailable":
+      return "bg-muted-foreground/40";
+  }
 }
 
 export function DemoPageShell({
@@ -259,6 +300,28 @@ export function DemoCodeBlock({
       data-testid="demo-code-block"
       dangerouslySetInnerHTML={{ __html: highlightedHtml }}
     />
+  );
+}
+
+export function DemoWakeWordStatus({ wakeWord }: DemoWakeWordStatusProps) {
+  return (
+    <p
+      aria-live="polite"
+      className="flex items-center gap-2 text-sm leading-6 text-muted-foreground"
+      data-testid="wake-word-status"
+      role="status"
+    >
+      <span
+        aria-hidden="true"
+        className={cn(
+          "block size-2 shrink-0 rounded-full",
+          getWakeWordDotClassName(wakeWord.status),
+        )}
+      />
+      <span data-testid="wake-word-status-detail">
+        {getWakeWordSummary(wakeWord)}
+      </span>
+    </p>
   );
 }
 

@@ -21,6 +21,7 @@ import {
   DemoIntro,
   DemoPageShell,
   DemoSection,
+  DemoWakeWordStatus,
 } from "../shared/primitives";
 import { type Theme } from "./config";
 import { useThemeDemoVoiceController } from "./controller";
@@ -87,6 +88,7 @@ export function ThemeDemoPage() {
 
         <DemoSection
           heading="Try Saying"
+          aside={<DemoWakeWordStatus wakeWord={wakeWord} />}
           description={
             <>
               Say <strong>{wakeWord.keywordLabel}</strong> to wake it, ask for{" "}
