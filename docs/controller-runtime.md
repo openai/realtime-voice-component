@@ -15,12 +15,15 @@ runtime directly.
 Use `createVoiceControlController(options)` when you need to:
 
 - share one session across multiple components or routes
+- keep the same session alive across scene or tab changes
 - reconnect the same runtime after UI changes
 - update instructions or tools without recreating the whole tree
 - build custom controls for connect, disconnect, and capture
 
 The demo app uses this second pattern for its shared demo session across the
-overview, theme, form, and chess routes.
+overview, theme, form, and chess routes. Because that controller lives above
+route-specific tools, the provider boots with a neutral config and each active
+demo reconfigures instructions and tools as it mounts.
 
 ## Ownership Rule
 
@@ -34,6 +37,10 @@ That ownership choice matters:
 - if you pass a controller, your app owns its lifecycle
 - if you pass options, the hook creates, reconfigures, and destroys the
   controller for you
+
+If you are retrofitting the package into an existing screen or product surface,
+read [Integrating with an existing app](./integrating-with-an-existing-app.md)
+for the recommended app-owned wrapper pattern and lifecycle pitfalls to avoid.
 
 ## What The Controller Tracks
 

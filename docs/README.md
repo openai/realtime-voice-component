@@ -7,11 +7,12 @@ dump.
 ## Read In This Order
 
 1. [Getting started](./getting-started.md)
-2. [Architecture choices](./architecture-choices.md)
-3. [Controller and runtime](./controller-runtime.md)
-4. [Widget and ghost cursor](./widget-and-cursor.md)
-5. [Authentication](./authentication.md)
-6. [Showcase demo architecture](./demo-architecture.md)
+2. [Integrating with an existing app](./integrating-with-an-existing-app.md)
+3. [Architecture choices](./architecture-choices.md)
+4. [Controller and runtime](./controller-runtime.md)
+5. [Widget and ghost cursor](./widget-and-cursor.md)
+6. [Authentication](./authentication.md)
+7. [Showcase demo architecture](./demo-architecture.md)
 
 ## Reference Docs
 

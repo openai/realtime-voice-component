@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useRef, useSyncExternalStore } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 
 import { createVoiceControlController, isVoiceControlController } from "./voiceControlController";
 import type {
@@ -57,17 +57,16 @@ export function useVoiceControl(input: UseVoiceControlInput): UseVoiceControlRet
 
   useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
 
-  const syncOwnedController = useEffectEvent((options: UseVoiceControlOptions) => {
-    if (bindingRef.current?.owned) {
-      bindingRef.current.controller.configure(options);
-    }
-  });
+  const latestInputRef = useRef<UseVoiceControlInput>(input);
+  latestInputRef.current = input;
 
   useEffect(() => {
-    if (owned && !isVoiceControlController(input)) {
-      syncOwnedController(input);
+    const latestInput = latestInputRef.current;
+
+    if (owned && !isVoiceControlController(latestInput) && bindingRef.current?.owned) {
+      bindingRef.current.controller.configure(latestInput);
     }
-  }, [input, owned, syncOwnedController]);
+  }, [input, owned]);
 
   useEffect(
     () => () => {

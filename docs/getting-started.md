@@ -16,6 +16,10 @@ The theme demo in this repo is the clearest first integration path. If you
 already know you do not want the packaged widget, build your own small surface
 on top of `createVoiceControlController()` and `useVoiceControl()`.
 
+If you already have a working app with existing state and handlers, read
+[Integrating with an existing app](./integrating-with-an-existing-app.md)
+before wiring the package into your production UI.
+
 ## Install From A Local Checkout
 
 This package currently supports local installation only. From your app, install
@@ -127,6 +131,7 @@ export function ThemeExample() {
 
 ## What To Read Next
 
+- [Integrating with an existing app](./integrating-with-an-existing-app.md)
 - [Architecture choices](./architecture-choices.md)
 - [Controller and runtime](./controller-runtime.md)
 - [Widget and ghost cursor](./widget-and-cursor.md)
