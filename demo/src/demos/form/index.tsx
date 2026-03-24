@@ -317,21 +317,23 @@ export function FormDemoPage() {
           body="This demo highlights field-by-field updates and simple voice-driven form submission."
         />
 
-        <DemoSection
-          heading="Try Saying"
-          aside={<DemoWakeWordStatus wakeWord={wakeWord} />}
-          description={
-            <>
-              Say <strong>{wakeWord.keywordLabel}</strong> to wake it, ask it to{" "}
-              <strong>
-                fill the form with name Ada Lovelace, birthday 1815-12-10, and
-                accept the terms
-              </strong>
-              , and say <strong>submit the form</strong> when the fields look
-              right.
-            </>
-          }
-        />
+        {!wakeWord.hasTriggeredOnce ? (
+          <DemoSection
+            heading="Try Saying"
+            aside={<DemoWakeWordStatus wakeWord={wakeWord} />}
+            description={
+              <>
+                Say <strong>{wakeWord.keywordLabel}</strong> to wake it, ask it to{" "}
+                <strong>
+                  fill the form with name Ada Lovelace, birthday 1815-12-10, and
+                  accept the terms
+                </strong>
+                , and say <strong>submit the form</strong> when the fields look
+                right.
+              </>
+            }
+          />
+        ) : null}
 
         <DemoSection
           heading="Simple Form"

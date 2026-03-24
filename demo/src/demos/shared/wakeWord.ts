@@ -6,6 +6,28 @@ const KEYWORD_LABEL = "Hey Chappie";
 const KEYWORD_PUBLIC_PATH = "/porcupine/hey-chappie_en_wasm_v4_0_0.ppn";
 const MODEL_PUBLIC_PATH = "/porcupine/porcupine_params.pv";
 const DETECTION_COOLDOWN_MS = 3000;
+const HAS_TRIGGERED_STORAGE_KEY = "demo:wake-word-triggered-once";
+
+function readHasTriggeredOnce() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return window.sessionStorage.getItem(HAS_TRIGGERED_STORAGE_KEY) === "true";
+}
+
+function writeHasTriggeredOnce(value: boolean) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (value) {
+    window.sessionStorage.setItem(HAS_TRIGGERED_STORAGE_KEY, "true");
+    return;
+  }
+
+  window.sessionStorage.removeItem(HAS_TRIGGERED_STORAGE_KEY);
+}
 
 export type WakeWordStatus =
   | "checking"
@@ -25,6 +47,7 @@ export type WakeWordState = {
   assetsAvailable: boolean;
   status: WakeWordStatus;
   detail: string;
+  hasTriggeredOnce: boolean;
   hasAccessKey: boolean;
   keywordLabel: string;
   keywordPath: string;
@@ -80,6 +103,7 @@ export function useWakeWordActivation({
   const hasAccessKey = accessKey.length > 0;
   const lastDetectionAtRef = useRef(0);
   const lastObservedDetectionRef = useRef<{ label: string } | null>(null);
+  const [hasTriggeredOnce, setHasTriggeredOnce] = useState(readHasTriggeredOnce);
   const [setupState, setSetupState] = useState<WakeWordSetupState>(() =>
     enabled ? { phase: "checking" } : { phase: "idle" },
   );
@@ -99,6 +123,8 @@ export function useWakeWordActivation({
     let cancelled = false;
 
     if (!enabled) {
+      setHasTriggeredOnce(false);
+      writeHasTriggeredOnce(false);
       setSetupState({ phase: "idle" });
       setAssetsReady(false);
       void release();
@@ -216,6 +242,11 @@ export function useWakeWordActivation({
     lastDetectionAtRef.current = now;
     const activated = onWakeWord(keywordDetection.label);
 
+    if (activated) {
+      setHasTriggeredOnce(true);
+      writeHasTriggeredOnce(true);
+    }
+
     if (activated && isListening) {
       // Release the wake-word mic before WebRTC opens its own capture stream.
       void stop();
@@ -264,6 +295,7 @@ export function useWakeWordActivation({
     assetsAvailable,
     status,
     detail,
+    hasTriggeredOnce,
     hasAccessKey,
     keywordLabel: KEYWORD_LABEL,
     keywordPath: KEYWORD_PUBLIC_PATH,

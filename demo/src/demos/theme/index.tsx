@@ -86,18 +86,20 @@ export function ThemeDemoPage() {
           body="This demo highlights wake-word activation, tool calls, and voice-driven theme changes."
         />
 
-        <DemoSection
-          heading="Try Saying"
-          aside={<DemoWakeWordStatus wakeWord={wakeWord} />}
-          description={
-            <>
-              Say <strong>{wakeWord.keywordLabel}</strong> to wake it, ask for{" "}
-              <strong>dark mode</strong> or <strong>light mode</strong> to
-              change the theme, and say <strong>switch to the form demo</strong>{" "}
-              to move to the other example.
-            </>
-          }
-        />
+        {!wakeWord.hasTriggeredOnce ? (
+          <DemoSection
+            heading="Try Saying"
+            aside={<DemoWakeWordStatus wakeWord={wakeWord} />}
+            description={
+              <>
+                Say <strong>{wakeWord.keywordLabel}</strong> to wake it, ask for{" "}
+                <strong>dark mode</strong> or <strong>light mode</strong> to
+                change the theme, and say <strong>switch to the form demo</strong>{" "}
+                to move to the other example.
+              </>
+            }
+          />
+        ) : null}
 
         <DemoSection
           heading="Theme"

@@ -237,18 +237,20 @@ export function ChessDemoPage() {
           body="This demo keeps voice actions, drag-and-drop moves, hints, and engine suggestions on one shared chess position."
         />
 
-        <DemoSection
-          heading="Try Saying"
-          aside={<DemoWakeWordStatus wakeWord={wakeWord} />}
-          description={
-            <>
-              Say <strong>{wakeWord.keywordLabel}</strong> to wake it, ask for{" "}
-              <strong>e4</strong> or <strong>knight f3</strong> to play a move,
-              ask for <strong>a hint from g1</strong>, or say{" "}
-              <strong>what is the best move</strong>.
-            </>
-          }
-        />
+        {!wakeWord.hasTriggeredOnce ? (
+          <DemoSection
+            heading="Try Saying"
+            aside={<DemoWakeWordStatus wakeWord={wakeWord} />}
+            description={
+              <>
+                Say <strong>{wakeWord.keywordLabel}</strong> to wake it, ask for{" "}
+                <strong>e4</strong> or <strong>knight f3</strong> to play a move,
+                ask for <strong>a hint from g1</strong>, or say{" "}
+                <strong>what is the best move</strong>.
+              </>
+            }
+          />
+        ) : null}
 
         <DemoSection
           heading="Board"
