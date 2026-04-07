@@ -5,7 +5,7 @@ import {
   type ReactNode,
 } from "react";
 import type { BundledLanguage } from "shiki";
-import { Link, NavLink } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -42,13 +42,6 @@ type DemoSectionProps = PropsWithChildren<{
   aside?: ReactNode;
   className?: string;
 }>;
-
-type DemoLinkCardProps = {
-  eyebrow: string;
-  title: string;
-  body: ReactNode;
-  to: string;
-};
 
 type DemoCodeBlockProps = {
   children: string;
@@ -322,24 +315,6 @@ export function DemoWakeWordStatus({ wakeWord }: DemoWakeWordStatusProps) {
         {getWakeWordSummary(wakeWord)}
       </span>
     </p>
-  );
-}
-
-export function DemoLinkCard({ eyebrow, title, body, to }: DemoLinkCardProps) {
-  return (
-    <Link to={to}>
-      <Card className="rounded-[16px] p-5 transition-transform duration-150 hover:-translate-y-0.5 hover:border-foreground/15 hover:shadow-[0_10px_20px_rgba(17,17,17,0.06)]">
-        <CardContent className="grid gap-3 p-0">
-          <DemoEyebrow>{eyebrow}</DemoEyebrow>
-          <div className="text-[1.24rem] font-semibold tracking-[-0.03em]">
-            {title}
-          </div>
-          <p className="text-[1.02rem] leading-[1.7] text-muted-foreground">
-            {body}
-          </p>
-        </CardContent>
-      </Card>
-    </Link>
   );
 }
 

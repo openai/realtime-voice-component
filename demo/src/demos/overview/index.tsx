@@ -2,7 +2,6 @@ import {
   DemoCard,
   DemoCodeBlock,
   DemoIntro,
-  DemoLinkCard,
   DemoPageShell,
   DemoSection,
 } from "../shared/primitives";
@@ -98,32 +97,6 @@ export function Example() {
       .send(await realtimeResponse.text());
   }
 );`}</DemoCodeBlock>
-        </DemoSection>
-
-        <DemoSection
-          heading="Demos"
-          description="Try the theme, form, and chess examples."
-        >
-          <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
-            <DemoLinkCard
-              to="/demo/theme"
-              eyebrow="Theme Demo"
-              title="Theme Switching"
-              body="Flip the page theme and jump to the form demo."
-            />
-            <DemoLinkCard
-              to="/demo/form"
-              eyebrow="Form Demo"
-              title="Form Filling"
-              body="Fill one field at a time and jump back to the theme demo."
-            />
-            <DemoLinkCard
-              to="/demo/chess"
-              eyebrow="Chess Demo"
-              title="Shared Board State"
-              body="Play moves, ask for hints, and get engine suggestions on one board."
-            />
-          </div>
         </DemoSection>
       </DemoCard>
     </DemoPageShell>
