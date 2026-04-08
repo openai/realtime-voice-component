@@ -469,8 +469,8 @@ There are two common initialization shapes:
 
 The showcase demo in this repo uses the second pattern for its shared session
 provider. That shape is useful when the same voice session should stay alive as
-the user moves across scenes. The CUA sample integration uses the first pattern
-inside one screen.
+the user moves across scenes. For a single-screen integration, prefer the first
+pattern and create the controller with the tools that screen already owns.
 
 Important warning:
 
