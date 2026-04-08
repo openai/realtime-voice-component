@@ -446,6 +446,41 @@ When you retrofit voice into an existing app, keep these rules in place:
 The ghost cursor is only confirmation. It should point at the real control that
 changed. It should not become the mechanism that performs the state change.
 
+## Controller Ownership And Lifecycle
+
+The most important integration decision is who owns the controller.
+
+There are two valid patterns:
+
+- `useVoiceControl(options)` means the hook owns creation, reconfiguration, and
+  teardown
+- `useVoiceControl(controller)` or `VoiceControlWidget controller={controller}`
+  means your app owns the controller lifecycle
+
+For existing apps, the external-controller pattern is often the better fit
+because it lets one screen, route provider, or app shell own the voice surface.
+
+There are two common initialization shapes:
+
+- if one screen owns the controller and already knows its tools, initialize the
+  controller with the current tool list immediately
+- if a provider or shell owns a controller above route-level tools, bootstrap a
+  neutral controller first and reconfigure it as the active screen changes
+
+The showcase demo in this repo uses the second pattern for its shared session
+provider. That shape is useful when the same voice session should stay alive as
+the user moves across scenes. For a single-screen integration, prefer the first
+pattern and create the controller with the tools that screen already owns.
+
+Important warning:
+
+- do not destroy an externally owned controller from a leaf component cleanup
+- keep teardown decisions at the same layer that created the controller
+
+This is especially important in React development mode and Strict Mode, where
+remounts and cleanup can expose ownership bugs. A destroyed external controller
+can leave a mounted widget holding a dead controller that never connects.
+
 ## Integration Gotchas
 
 - choose ownership first
