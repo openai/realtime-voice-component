@@ -1,0 +1,103 @@
+{
+  "name": "realtime-voice-component",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "React voice controls for browser apps using OpenAI Realtime.",
+  "packageManager": "pnpm@10.30.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/openai/realtime-voice-component.git"
+  },
+  "homepage": "https://github.com/openai/realtime-voice-component#readme",
+  "bugs": {
+    "url": "https://github.com/openai/realtime-voice-component/issues"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "files": [
+    "dist/index.cjs",
+    "dist/index.d.cts",
+    "dist/index.d.ts",
+    "dist/index.js",
+    "dist/styles.css",
+    "LICENSE"
+  ],
+  "sideEffects": [
+    "*.css"
+  ],
+  "keywords": [
+    "openai",
+    "react",
+    "realtime",
+    "voice",
+    "webrtc"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --dts --format esm,cjs --external react,react-dom,zod && node -e \"require('node:fs').copyFileSync('src/styles.css', 'dist/styles.css')\"",
+    "coverage": "vitest run --coverage",
+    "demo": "node demo/dev.mjs",
+    "demo:app": "vite --config demo/vite.config.ts",
+    "demo:build": "vite build --config demo/vite.config.ts",
+    "demo:session": "node demo/session-server.mjs",
+    "demo:token": "node demo/session-server.mjs",
+    "demo:typecheck": "tsc --noEmit -p demo/tsconfig.json",
+    "prepack": "npm run build",
+    "test": "vitest run",
+    "lint": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "peerDependencies": {
+    "react": "^18.3.0 || ^19.0.0",
+    "react-dom": "^18.3.0 || ^19.0.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@picovoice/porcupine-react": "^4.0.0",
+    "@tailwindcss/vite": "^4.2.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/jsdom": "^28.0.0",
+    "@types/node": "^25.3.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.4",
+    "@vitest/coverage-v8": "^4.1.0",
+    "chess.js": "^1.4.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "js-chess-engine": "^2.4.6",
+    "jsdom": "^28.1.0",
+    "lucide-react": "^0.577.0",
+    "radix-ui": "^1.4.3",
+    "react": "^19.2.0",
+    "react-chessboard": "^5.10.0",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.13.1",
+    "shadcn": "^4.0.8",
+    "shiki": "^4.0.2",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4.2.1",
+    "tsup": "^8.5.1",
+    "tw-animate-css": "^1.4.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1",
+    "vitest": "^4.0.18",
+    "zod": "^4.3.6"
+  }
+}

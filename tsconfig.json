@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./demo/src/*"],
+      "realtime-voice-component": ["./src/index.ts"],
+      "realtime-voice-component/styles.css": ["./src/styles.css"]
+    },
+    "types": ["vitest/globals", "jsdom", "node"]
+  },
+  "include": ["src", "test"]
+}

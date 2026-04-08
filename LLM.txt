@@ -1,0 +1,326 @@
+This is the single-file installation guide for `realtime-voice-component`.
+
+It is written for an AI coding agent integrating the library into an existing React web app.
+
+Read this first:
+
+- This is a browser/client React library.
+- The model does not get free browser or desktop control.
+- Your app must define narrow tools and perform the real state changes.
+- Treat this repo as demo/reference code, not a production framework.
+- Install from a local checkout of this repository. Do not assume the package is on npm.
+- Do not use a standard OpenAI API key in the browser.
+
+Use this default integration unless the host app has a strong reason not to:
+
+- `outputMode: "tool-only"`
+- explicit `createVoiceControlController(...)`
+- a small tool surface
+- one visible app action per tool
+- `activationMode: "vad"` when using `VoiceControlWidget`
+- default `server_vad` turn detection; avoid `semantic_vad` unless the host app
+  intentionally overrides the session
+- `interruptResponse: false` for text/tool-only VAD sessions so new speech does
+  not cancel an in-flight text response or function call
+
+Step 1: install the package
+
+```bash
+npm add ../path/to/realtime-voice-component zod
+```
+
+If you use the packaged widget or ghost cursor visuals, import the stylesheet in client-side code:
+
+```ts
+import "realtime-voice-component/styles.css";
+```
+
+Step 2: add a backend session route
+
+The library calls `POST /session` with a multipart body when you pass
+`auth: { sessionEndpoint: "/session" }`.
+
+The browser sends two fields:
+
+- `sdp`: the local WebRTC offer
+- `session`: the serialized Realtime session config built by the library
+
+Your backend route should forward that multipart body to
+`POST https://api.openai.com/v1/realtime/calls` with the server-side OpenAI API
+key and return the answer SDP body unchanged.
+
+Use this Express-style example and adapt the route syntax to the host framework:
+
+```ts
+app.post("/session", async (request, response) => {
+  const contentType = request.header("content-type");
+  const realtimeResponse = await fetch("https://api.openai.com/v1/realtime/calls", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      ...(contentType ? { "Content-Type": contentType } : {})
+    },
+    body: request,
+    duplex: "half"
+  });
+
+  response
+    .status(realtimeResponse.status)
+    .type(realtimeResponse.headers.get("content-type") ?? "application/sdp")
+    .send(await realtimeResponse.text());
+});
+```
+
+Step 3: add one client component that wires up the library
+
+If the host app uses SSR or React Server Components, this must be a client component.
+
+This is the minimal end-to-end example. It defines one tool, creates the controller, renders the packaged widget, and sends current UI state back into the session.
+
+```tsx
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { z } from "zod";
+import {
+  VoiceControlWidget,
+  createVoiceControlController,
+  defineVoiceTool
+} from "realtime-voice-component";
+import "realtime-voice-component/styles.css";
+
+function buildCurrentStateMessage(theme: "light" | "dark") {
+  return `Current visible theme: ${theme}.`;
+}
+
+export function ThemeSettingsPage() {
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const themeRef = useRef(theme);
+  themeRef.current = theme;
+
+  const controller = useMemo(() => {
+    const setThemeTool = defineVoiceTool({
+      name: "set_theme",
+      description: "Switch the visible page theme between light and dark mode.",
+      parameters: z.object({
+        theme: z.enum(["light", "dark"])
+      }),
+      async execute({ theme }) {
+        if (themeRef.current === theme) {
+          return {
+            ok: true,
+            changed: false,
+            alreadyActive: true,
+            theme
+          };
+        }
+
+        setTheme(theme);
+
+        return {
+          ok: true,
+          changed: true,
+          alreadyActive: false,
+          theme
+        };
+      }
+    });
+
+    return createVoiceControlController({
+      auth: { sessionEndpoint: "/session" },
+      instructions:
+        "You are a voice control agent for a React web app. Use only the registered tools to act on the UI. Prefer tool calls over chat when a tool can satisfy the request. Ask one short clarification question when required tool arguments are missing or ambiguous. Do not invent capabilities or successful outcomes.",
+      outputMode: "tool-only",
+      activationMode: "vad",
+      tools: [setThemeTool]
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      controller.destroy();
+    };
+  }, [controller]);
+
+  useEffect(() => {
+    if (!controller.connected) {
+      return;
+    }
+
+    controller.sendClientEvent({
+      type: "conversation.item.create",
+      item: {
+        type: "message",
+        role: "system",
+        content: [
+          {
+            type: "input_text",
+            text: buildCurrentStateMessage(theme)
+          }
+        ]
+      }
+    });
+  }, [controller, theme]);
+
+  return (
+    <>
+      <section>
+        <p>Current theme: {theme}</p>
+        <button type="button" onClick={() => setTheme("light")}>
+          Light
+        </button>
+        <button type="button" onClick={() => setTheme("dark")}>
+          Dark
+        </button>
+      </section>
+
+      <VoiceControlWidget controller={controller} snapToCorners />
+    </>
+  );
+}
+```
+
+Step 4: know what this example is doing
+
+- `defineVoiceTool(...)` creates the tool the model is allowed to call.
+- The tool schema must use Zod. Plain JSON Schema is rejected.
+- `createVoiceControlController(...)` owns the Realtime connection, transcript, tool execution, and session state.
+- `VoiceControlWidget` is only a launcher UI. It is not a transcript panel, debug panel, or full assistant surface.
+- `sendClientEvent(...)` sends the real current app state back into the session after visible changes.
+- The default VAD config is server-side VAD with `threshold: 0.5`, `prefixPaddingMs: 300`, `silenceDurationMs: 200`, and `createResponse: true`.
+- In `tool-only` and `text` output modes, the default VAD config also sets `interruptResponse: false`. Preserve that when overriding `audio.input.turnDetection` unless you want user speech to interrupt a pending tool call.
+
+Step 5: verify the first integration
+
+The first pass is done when:
+
+- the host app can proxy the `/session` request through its backend
+- one tool can be called successfully from the voice session
+- that tool performs a real visible UI update
+- the app sends updated state back into the session after the change
+- the user can connect and disconnect the voice runtime
+
+Step 6: only then add more tools
+
+Good next tools:
+
+- one form field per tool call
+- a "get missing fields" tool for multi-step flows
+- a submit tool that runs only after required edits are complete
+
+Bad tools:
+
+- a generic "click anything" tool
+- a generic "control the whole app" tool
+- any tool that claims success without verifying the real app action happened
+
+Optional: use the legacy client-secret flow instead of `sessionEndpoint`
+
+Use this only if the host app explicitly wants the browser to send SDP directly
+to OpenAI with a short-lived Realtime client secret:
+
+```ts
+const controller = createVoiceControlController({
+  auth: {
+    getClientSecret: async () => {
+      const response = await fetch("/token", {
+        credentials: "include"
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to load client secret: ${response.status}`);
+      }
+
+      const payload = await response.json();
+      return payload.value ?? payload.client_secret?.value ?? payload.client_secret;
+    }
+  },
+  outputMode: "tool-only",
+  tools: [yourTool]
+});
+```
+
+Optional: build custom UI instead of `VoiceControlWidget`
+
+Use this when the host app needs custom connect/disconnect controls, transcript UI, analytics UI, or push-to-talk controls.
+
+```tsx
+"use client";
+
+import {
+  useVoiceControl,
+  type VoiceControlController
+} from "realtime-voice-component";
+
+export function CustomVoiceControls({
+  controller
+}: {
+  controller: VoiceControlController;
+}) {
+  const runtime = useVoiceControl(controller);
+
+  return (
+    <div>
+      <p>Status: {runtime.status}</p>
+      <button type="button" onClick={() => void runtime.connect()}>
+        Connect
+      </button>
+      <button type="button" onClick={() => runtime.disconnect()}>
+        Disconnect
+      </button>
+    </div>
+  );
+}
+```
+
+Optional: visible confirmation with the ghost cursor
+
+The ghost cursor is visual confirmation only. It does not perform the real app action.
+
+```tsx
+import {
+  GhostCursorOverlay,
+  useGhostCursor
+} from "realtime-voice-component";
+
+const cursor = useGhostCursor();
+
+await cursor.run(
+  {
+    element: buttonRef.current,
+    pulseElement: buttonRef.current
+  },
+  async () => {
+    setTheme("dark");
+    return { ok: true, theme: "dark" };
+  },
+  {
+    from: "previous"
+  }
+);
+
+return <GhostCursorOverlay state={cursor.cursorState} />;
+```
+
+Gotchas
+
+- This package is browser/client code. Do not integrate it as a server-only runtime.
+- It requires a secure context for microphone access, so use HTTPS or localhost.
+- It depends on browser WebRTC and microphone APIs.
+- `VoiceControlWidget` is launcher-only. It is not a transcript UI, chat UI, or debug surface.
+- The packaged widget is best for launcher-first flows. If you need push-to-talk controls, use custom UI on top of the controller.
+- `transcript` is only the latest assembled transcript text, not full conversation history.
+- A fresh `connect()` resets transcript and tool-call history.
+- In `tool-only` mode, the model can still fail to choose a tool. Treat that as no action, not success.
+- Tool outputs are serialized before being sent back to Realtime, so avoid `BigInt`, circular objects, or other non-serializable values.
+- When `snapToCorners` is enabled, the floating widget renders through a portal to `document.body`.
+- Widget position and corner state can persist in local storage. If you mount multiple widgets, give them unique `widgetId` values.
+- Keep app validation, submission rules, and confirmation of success in the app, not in the model.
+
+Do not do these things
+
+- Do not expose broad browser-control tools.
+- Do not claim the library can autonomously operate the whole application.
+- Do not rely on the model alone to remember current UI state.
+- Do not return fake success from a tool if the app action failed.
+- Do not start with a large tool surface. Start with one tool and one visible action.
