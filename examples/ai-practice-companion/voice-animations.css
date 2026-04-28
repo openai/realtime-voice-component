@@ -1,0 +1,67 @@
+/*
+ * voice-animations.css — CSS feedback animations for voice actions
+ *
+ * These animations replace ghost cursor for most voice confirmation needs.
+ *
+ * Why CSS keyframes instead of ghost cursor?
+ *
+ * Ghost cursor travels from wherever the pointer currently is to the target
+ * element. In a chat-style UI with a persistent input at the bottom and
+ * action chips scattered across the page, that travel distance is often
+ * 400–800 px. The animation takes 600–900 ms, during which the user is
+ * watching a pointer move across the screen before the action fires.
+ *
+ * These keyframe animations flash the target element in-place instead:
+ * - The user immediately sees which element was matched.
+ * - The action fires in 350 ms (scheduleFlash delay).
+ * - No cursor travel. No spatial mismatch if the layout shifts.
+ *
+ * When to use ghost cursor instead:
+ * Use ghost cursor when the goal is to guide a user's attention to WHERE
+ * something is on screen — a teaching moment or a tour. For routine voice
+ * commands in a practised UI, in-place flash is faster and less distracting.
+ *
+ * Usage:
+ *   // In your dispatchVoiceAction, add the class for 350 ms:
+ *   element.classList.add("voice-button-flash");
+ *   setTimeout(() => element.classList.remove("voice-button-flash"), 550);
+ *
+ *   // For the submit button before the question fires:
+ *   btn.classList.add("voice-submit-pulse");
+ *   setTimeout(() => btn.classList.remove("voice-submit-pulse"), 700);
+ */
+
+/* ── Submit button pulse — fires before submit_question executes ─────── */
+
+@keyframes voice-pulse {
+  0%   { transform: scale(1);    box-shadow: 0 0 0 0 hsl(var(--accent) / 0.5); }
+  40%  { transform: scale(1.14); box-shadow: 0 0 0 7px hsl(var(--accent) / 0); }
+  100% { transform: scale(1);    box-shadow: 0 0 0 0 hsl(var(--accent) / 0); }
+}
+
+.voice-submit-pulse {
+  animation: voice-pulse 0.65s ease-out forwards;
+}
+
+/* ── Button flash — fires on select_suggested_question / select_crisis_question */
+
+@keyframes voice-button-flash {
+  0%   { transform: scale(1);    opacity: 1; }
+  25%  { transform: scale(1.12); opacity: 0.85; }
+  60%  { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+
+.voice-button-flash {
+  animation: voice-button-flash 0.55s ease-out forwards;
+  outline: 2px solid hsl(var(--accent) / 0.6);
+  outline-offset: 2px;
+}
+
+/*
+ * CSS variable used above: --accent (HSL hue-saturation-lightness)
+ *
+ * Define this in your :root or replace with a direct color value:
+ *   :root { --accent: 217 91% 60%; }  /× blue ×/
+ *   :root { --accent: 142 76% 36%; }  /× green ×/
+ */

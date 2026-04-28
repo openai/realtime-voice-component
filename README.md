@@ -412,6 +412,22 @@ In practice, the most reliable pattern is:
 3. let the widget stay thin and launcher-focused
 4. keep teardown decisions at the same layer that created the controller
 
+## Production Integration Examples
+
+The `examples/` directory contains fully annotated integrations built on top of this library.
+
+### [`examples/ai-practice-companion/`](./examples/ai-practice-companion/)
+
+A production integration for an AI knowledge platform (243 articles). Demonstrates two patterns that emerged from building real features on this library:
+
+**Fill-then-Submit** — Voice fills the text input as the user speaks (`update_draft`), never submits automatically. The user explicitly says "send" or "go" to trigger `submit_question`. Prevents accidental submissions on speech pauses.
+
+**Voice as State Controller** — Voice tool calls invoke the same React state handlers that buttons call. No parallel state machine. `handleReset()`, `setShowCrisisInline()`, `handleSuggestedQuestion()` — voice is one more input channel into existing state.
+
+> Companion article: [Voice as a State Controller — Building a Tool-Constrained Voice Interface on OpenAI Realtime](https://medium.com/@lakshmi_narayana_u)
+
+Includes: hook with ref pattern, three input tools, navigation tool with fuzzy matching, Express session proxy with rate limiting, and CSS keyframe animations as an alternative to ghost cursor.
+
 ## Local Install
 
 This repo is still optimized for local open-source use rather than npm release
