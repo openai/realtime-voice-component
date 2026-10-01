@@ -10,6 +10,7 @@ Read this first:
 - Treat this repo as demo/reference code, not a production framework.
 - Install from a local checkout of this repository. Do not assume the package is on npm.
 - Do not use a standard OpenAI API key in the browser.
+- `useVoiceControl(options)` handles Strict Mode effect replay for its owned controller. It starts automatic connections after mounting and disposes the controller after a real unmount. External controllers remain app-owned.
 
 Use this default integration unless the host app has a strong reason not to:
 

@@ -465,6 +465,10 @@ pattern and create the controller with the tools that screen already owns.
 
 Important warning:
 
+`useVoiceControl(options)` handles Strict Mode effect replay for the controller
+it owns, starts automatic connections after mounting, and disposes that controller
+after a real unmount. This does not manage externally created controllers.
+
 - do not destroy an externally owned controller from a leaf component cleanup
 - keep teardown decisions at the same layer that created the controller
 

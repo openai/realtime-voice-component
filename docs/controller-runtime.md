@@ -38,6 +38,11 @@ That ownership choice matters:
 - if you pass options, the hook creates, reconfigures, and destroys the
   controller for you
 
+Hook-owned controllers survive React Strict Mode effect replay. Automatic
+connections start in an effect. Destruction is deferred by one microtask so a
+replayed effect can reattach the same controller; real unmounts and replacements
+still dispose it. External controller ownership is unchanged.
+
 If you are retrofitting the package into an existing screen or product surface,
 read [Integrating with an existing app](./integrating-with-an-existing-app.md)
 for the recommended app-owned wrapper pattern and lifecycle pitfalls to avoid.

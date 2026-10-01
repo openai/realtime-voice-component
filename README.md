@@ -370,6 +370,9 @@ creation time, and whether a neutral bootstrap controller is the right shape.
 
 ### Integration Gotchas We Learned
 
+- `useVoiceControl(options)` preserves its owned controller during Strict Mode
+  effect replay and disposes it after a real unmount. Automatic connections start
+  after mounting, rather than during rendering.
 - Do not destroy an externally owned controller from a leaf component cleanup.
   In React development mode and Strict Mode, remounts can leave a mounted
   widget holding a dead controller that silently never connects.

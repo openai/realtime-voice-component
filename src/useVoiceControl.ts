@@ -22,7 +22,7 @@ function createBinding(input: UseVoiceControlInput): ControllerBinding {
   }
 
   return {
-    controller: createVoiceControlController(input),
+    controller: createVoiceControlController({ ...input, autoConnect: false }),
     owned: true,
   };
 }
@@ -32,14 +32,11 @@ export function useVoiceControl(controller: VoiceControlController): UseVoiceCon
 export function useVoiceControl(input: UseVoiceControlInput): UseVoiceControlReturn;
 export function useVoiceControl(input: UseVoiceControlInput): UseVoiceControlReturn {
   const bindingRef = useRef<ControllerBinding | null>(null);
+  const activeControllerRef = useRef<VoiceControlController | null>(null);
 
   if (bindingRef.current === null) {
     bindingRef.current = createBinding(input);
   } else if (isVoiceControlController(input)) {
-    if (bindingRef.current.owned) {
-      bindingRef.current.controller.destroy();
-    }
-
     if (bindingRef.current.controller !== input || bindingRef.current.owned) {
       bindingRef.current = {
         controller: input,
@@ -48,7 +45,7 @@ export function useVoiceControl(input: UseVoiceControlInput): UseVoiceControlRet
     }
   } else if (!bindingRef.current.owned) {
     bindingRef.current = {
-      controller: createVoiceControlController(input),
+      controller: createVoiceControlController({ ...input, autoConnect: false }),
       owned: true,
     };
   }
@@ -68,14 +65,22 @@ export function useVoiceControl(input: UseVoiceControlInput): UseVoiceControlRet
     }
   }, [input, owned]);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    activeControllerRef.current = controller;
+
+    return () => {
+      activeControllerRef.current = null;
       if (owned) {
-        controller.destroy();
+        // Strict Mode replays effects with the same controller. Dispose only
+        // after that replay has had a chance to reattach it.
+        queueMicrotask(() => {
+          if (activeControllerRef.current !== controller) {
+            controller.destroy();
+          }
+        });
       }
-    },
-    [controller, owned],
-  );
+    };
+  }, [controller, owned]);
 
   return controller;
 }
