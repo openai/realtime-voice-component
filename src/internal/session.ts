@@ -1,6 +1,7 @@
 import type {
   OutputMode,
   RealtimeAudioConfig,
+  RealtimeAudioFormat,
   RealtimeInputAudioNoiseReduction,
   RealtimeInputAudioTranscription,
   RealtimePrompt,
@@ -113,6 +114,17 @@ function mapTranscription(transcription: RealtimeInputAudioTranscription | null 
   };
 }
 
+function mapAudioFormat(format: RealtimeAudioFormat) {
+  switch (format) {
+    case "pcm16":
+      return { type: "audio/pcm", rate: 24000 };
+    case "g711_ulaw":
+      return { type: "audio/pcmu" };
+    case "g711_alaw":
+      return { type: "audio/pcma" };
+  }
+}
+
 function mapAudioConfig(session: TransportSessionConfig, audio: RealtimeAudioConfig | undefined) {
   const input = audio?.input;
   const output = audio?.output;
@@ -123,7 +135,7 @@ function mapAudioConfig(session: TransportSessionConfig, audio: RealtimeAudioCon
 
   return {
     input: {
-      ...(input?.format !== undefined ? { format: input.format } : {}),
+      ...(input?.format !== undefined ? { format: mapAudioFormat(input.format) } : {}),
       ...(input?.noiseReduction !== undefined
         ? { noise_reduction: mapNoiseReduction(input.noiseReduction) }
         : {}),
@@ -135,7 +147,7 @@ function mapAudioConfig(session: TransportSessionConfig, audio: RealtimeAudioCon
     ...(output
       ? {
           output: {
-            ...(output.format !== undefined ? { format: output.format } : {}),
+            ...(output.format !== undefined ? { format: mapAudioFormat(output.format) } : {}),
             ...(output.speed !== undefined ? { speed: output.speed } : {}),
             ...(output.voice !== undefined ? { voice: output.voice } : {}),
           },

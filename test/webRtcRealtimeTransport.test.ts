@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { WebRtcRealtimeTransport } from "../src/transport/webRtcRealtimeTransport";
+import { buildRealtimeSessionPayload } from "../src/internal/session";
 
 class MockDataChannel extends EventTarget {
   public readyState: RTCDataChannelState = "connecting";
@@ -161,6 +162,79 @@ describe("WebRtcRealtimeTransport", () => {
     vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  describe.each(["input", "output"] as const)("%s audio format", (side) => {
+    it.each([
+      ["pcm16", { type: "audio/pcm", rate: 24000 }],
+      ["g711_ulaw", { type: "audio/pcmu" }],
+      ["g711_alaw", { type: "audio/pcma" }],
+    ] as const)("serializes %s for session creation and updates", async (format, expected) => {
+      const { fetchMock, onError, peerConnections, transport } = setupTransportTest();
+      const session = { ...baseSession(), audio: { [side]: { format } } };
+      const originalSession = JSON.stringify(session);
+      const connectPromise = transport.connect({
+        auth: { type: "session_endpoint", sessionEndpoint: "/session" },
+        session,
+        audioPlaybackEnabled: false,
+        onServerEvent: vi.fn(),
+        onError: onError as (error: Error) => void,
+      });
+      const peerConnection = getPeerConnection(peerConnections);
+      peerConnection.dataChannel.open();
+
+      try {
+        await connectPromise;
+        const [, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+        const body = requestInit.body as FormData;
+        const createdSession = JSON.parse(body.get("session") as string);
+        expect(createdSession.audio[side].format).toEqual(expected);
+
+        const initialUpdate = JSON.parse(peerConnection.dataChannel.send.mock.calls[0]![0]);
+        expect(initialUpdate.type).toBe("session.update");
+        expect(initialUpdate.session.audio[side].format).toEqual(expected);
+
+        peerConnection.dataChannel.send.mockClear();
+        transport.updateSession(session);
+        const laterUpdate = JSON.parse(peerConnection.dataChannel.send.mock.calls[0]![0]);
+        expect(laterUpdate.type).toBe("session.update");
+        expect(laterUpdate.session.audio[side].format).toEqual(expected);
+        expect(JSON.stringify(session)).toBe(originalSession);
+        expect(onError).not.toHaveBeenCalled();
+      } finally {
+        transport.disconnect();
+      }
+    });
+  });
+
+  it("leaves omitted formats and other audio settings unchanged", () => {
+    const payload = buildRealtimeSessionPayload({
+      ...baseSession(),
+      audio: {
+        input: { noiseReduction: { type: "near_field" }, transcription: { language: "en" } },
+        output: { voice: "marin", speed: 1.1 },
+      },
+    });
+
+    expect(payload.audio).toEqual({
+      input: {
+        noise_reduction: { type: "near_field" },
+        transcription: { language: "en" },
+        turn_detection: null,
+      },
+      output: { voice: "marin", speed: 1.1 },
+    });
+  });
+
+  it("keeps raw audio overrides authoritative", () => {
+    const audio = { output: { format: { type: "audio/pcmu" } } };
+    const payload = buildRealtimeSessionPayload({
+      ...baseSession(),
+      audio: { input: { format: "pcm16" }, output: { format: "g711_alaw" } },
+      raw: { audio },
+    });
+
+    expect(payload.audio).toEqual(audio);
   });
 
   it("cleans up RTC resources when connect fails after media capture", async () => {
