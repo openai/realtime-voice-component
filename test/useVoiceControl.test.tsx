@@ -550,7 +550,7 @@ describe("useVoiceControl", () => {
         },
         audio: {
           input: {
-            format: "pcm16",
+            format: { type: "audio/pcm", rate: 24000 },
             noise_reduction: {
               type: "near_field",
             },
@@ -570,7 +570,7 @@ describe("useVoiceControl", () => {
             },
           },
           output: {
-            format: "g711_ulaw",
+            format: { type: "audio/pcmu" },
             speed: 1.1,
             voice: "marin",
           },
